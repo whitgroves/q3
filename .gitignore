@@ -7,3 +7,11 @@ __*__/
 
 # exceptions
 !.gitignore
+!.ebignore
+
+# (everything below this line was automatically added)
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

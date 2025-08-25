@@ -1,0 +1,13 @@
+# ignored files for elastic beanstalk
+# see https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/eb-cli3-configuration.html#eb-cli3-ebignore
+
+# hidden folders
+__*__/
+.*/
+
+# hidden files
+.*
+
+# pytest / pylint
+tests/*
+pyproject.toml

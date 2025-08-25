@@ -3,7 +3,7 @@ import pytest
 import flask
 import flask.testing
 import werkzeug.security as ws
-import qqueue as qq
+import qqueue
 # from qqueue import models
 # from qqueue import config as cfg
 # from qqueue import extensions as ext
@@ -26,7 +26,7 @@ def app() -> flask.Flask: # pyright: ignore[reportInvalidTypeForm]
     Each instance is seeded with test records and returned within q3's app
     context for ease of writing tests.
     """
-    app = qq.create_app() #cfg.TestConfig)
+    app = qqueue.create_app() #cfg.TestConfig)
 
     with app.app_context(): # setup test records
         # test_users = [models.User(email=u['email'],
