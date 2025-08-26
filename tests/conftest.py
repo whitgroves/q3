@@ -1,15 +1,12 @@
 """Test module for qqueue. Assumes app/ is in the same parent directory."""
-import pytest
-import flask
-import flask.testing
-import werkzeug.security as ws
-import qqueue
+from pytest import fixture
+from flask import Flask
+from flask.testing import FlaskClient
+from werkzeug.security import generate_password_hash
+from qqueue import create_app
 from qqueue.models import User
 from qqueue.config import TestConfig
 from qqueue.extensions import database
-# from qqueue import models
-# from qqueue import config as cfg
-# from qqueue import extensions as ext
 
 # initialized outside of the app fixture so the other test modules can access.
 # it's not "best practice" to do this, but it makes writing tests much easier.
@@ -22,19 +19,19 @@ post_data = [{'title': f'Underwater Basket Weaving {i+1}01',
 comment_data = ['first', 'second']
 tag_data = [f'tag{i}' for i in range(1)]
 
-@pytest.fixture()
-def application() -> flask.Flask: # pyright: ignore[reportInvalidTypeForm]
+@fixture()
+def application() -> Flask: # pyright: ignore[reportInvalidTypeForm]
     """Creates an instance of the qqueue app.
     
     Each instance is seeded with test records and returned within qqueue's app
     context for ease of writing tests.
     """
-    app = qqueue.create_app(TestConfig)
+    app = create_app(TestConfig)
 
     with app.app_context(): # setup test records
         test_users = [User(email=u['email'],
                            username=u['username'],
-                           password=ws.generate_password_hash(u['password']))
+                           password=generate_password_hash(u['password']))
                                 for u in user_data]
         # test_posts = [models.Post(title=t['title'],
         #                           content=t['content'],
@@ -57,6 +54,6 @@ def application() -> flask.Flask: # pyright: ignore[reportInvalidTypeForm]
         # https://testdriven.io/blog/flask-contexts/#testing-example
         yield app
 
-@pytest.fixture()
-def client(application:flask.Flask) -> flask.testing.FlaskClient: # fixtures, pylint:disable=redefined-outer-name
+@fixture()
+def client(application:Flask) -> FlaskClient: # fixtures, pylint:disable=redefined-outer-name
     return application.test_client()
