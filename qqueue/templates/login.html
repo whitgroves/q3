@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} 🌐 {% endblock %} Login</h1>
+    <hr>
+    <form method="post">
+        {{ form.csrf_token }}
+
+        <div class="mb-3" >
+            <h5>{{ form.email_or_username.label(class='form-label') }}</h5>
+            <p>{{ form.email_or_username(class='form-control', size=100) }}</p>
+        </div>
+
+        <div class="mb-3">
+            <h5>{{ form.password.label(class='form-label') }}</h5>
+            <p>{{ form.password(class='form-control', size=100) }}</p>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Login</button>
+    </form>
+{% endblock %}

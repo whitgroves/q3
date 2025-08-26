@@ -7,5 +7,6 @@ def test_index(client:testing.FlaskClient) -> None:
 
 def test_about(client:testing.FlaskClient) -> None:
     response = client.get('/about')
-    test_link = 'https://github.com/whitgroves/q3'
-    assert f'<a href="{test_link}" target="_blank">' in response.text
+    assert '<a href="https://github.com/whitgroves" target="_blank">whitgroves</a>' in response.text # pylint: disable=line-too-long
+    assert '<a href="https://linkedin.com/in/whitgroves" target="_blank">LinkedIn</a>' in response.text # pylint: disable=line-too-long
+    assert '<a href="mailto:whitney.groves@gmail.com" target="_blank">whitney.groves@gmail.com</a>' in response.text # pylint: disable=line-too-long

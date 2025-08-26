@@ -24,7 +24,8 @@ def test_register(client:testing.FlaskClient) -> None:
     # Registration denied without CSRF token
     register_user_data = {'email': 'auth@test.net',
                           'password': 'authtest',
-                          'username': 'authtest'}
+                          'username': 'authtest',
+                          'confirm_password': 'authtest'}
     response_post_no_csrf = client.post('/register', data=register_user_data)
     assert response_post_no_csrf.status_code == 400
 
@@ -45,11 +46,11 @@ def test_login(client:testing.FlaskClient) -> None:
     # All fields present on form
     response_get = client.get('/login') # creates CSRF token - do NOT move
     assert all(x in response_get.text
-               for x in ['Username or Email', 'Password'])
+               for x in ['Email or Username', 'Password'])
 
     # User can login with email and is redirected to homepage
     post_data_email = {'csrf_token': flask.g.csrf_token,
-                                         'user_email': user['email'],
+                                         'email_or_username': user['email'],
                                          'password': user['password']}
     response_post_email = client.post('/login',
                                       data=post_data_email,
@@ -60,7 +61,7 @@ def test_login(client:testing.FlaskClient) -> None:
 
     # User can login with username and is redirected to homepage
     post_data_username = {'csrf_token': flask.g.csrf_token,
-                          'user_email': user['username'],
+                          'email_or_username': user['username'],
                           'password':user['password']}
     response_post_username = client.post('/login',
                                          data=post_data_username,
@@ -70,14 +71,14 @@ def test_login(client:testing.FlaskClient) -> None:
     assert response_post_username.request.path == '/'
 
     # Login denied without CSRF token, even with valid credentials
-    post_data_no_csrf = {'user_email': user['email'],
+    post_data_no_csrf = {'email_or_username': user['email'],
                          'password': user['password']}
     response_post_no_csrf = client.post('/login', data=post_data_no_csrf)
     assert response_post_no_csrf.status_code == 400
 
     # Login denied with invalid password, even with CSRF token
     post_data_bad_password = {'csrf_token': flask.g.csrf_token,
-                              'user_email':user['email'],
+                              'email_or_username':user['email'],
                               'password': 'wrong'}
     response_post_bad_password = client.post('/login',
                                              data=post_data_bad_password)
@@ -85,14 +86,14 @@ def test_login(client:testing.FlaskClient) -> None:
 
     # Login denied with non-registered email
     post_data_bad_email = {'csrf_token': flask.g.csrf_token,
-                           'user_email': 'user@wrong.com',
+                           'email_or_username': 'user@wrong.com',
                            'password': user['password']}
     response_post_bad_email = client.post('/login', data=post_data_bad_email)
     assert response_post_bad_email.status_code == 400
 
     # Login denied with non-registered username
     post_data_bad_username = {'csrf_token': flask.g.csrf_token,
-                              'user_email': 'not_a_user',
+                              'email_or_username': 'not_a_user',
                               'password': user['password']}
     response_post_bad_username = client.post('/login',
                                              data=post_data_bad_username)
@@ -102,7 +103,7 @@ def test_logout(client:testing.FlaskClient) -> None:
     # Setup - login
     client.get('/login') # creates CSRF token - do NOT move
     login_data = {'csrf_token': flask.g.csrf_token,
-                                'user_email': user['email'],
+                                'email_or_username': user['email'],
                                 'password': user['password']}
     client.post('/login', data=login_data)
 
