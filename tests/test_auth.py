@@ -1,4 +1,4 @@
-"""Test for the auth routes of q3.
+"""Test for the auth routes of qqueue.
 
 For this and other tests against CSRF forms, we do a little wizardry based on
 https://gist.github.com/singingwolfboy/2fca1de64950d5dfed72?permalink_comment_id=4556252#gistcomment-4556252

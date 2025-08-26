@@ -1,10 +1,13 @@
-"""Test module for qqueue. Assumes app/ is in the same parent directory."""
+'''Fixtures for automated testing of qqueue.'''
+
+from random import randint
+from datetime import date
 from pytest import fixture
 from flask import Flask
 from flask.testing import FlaskClient
 from werkzeug.security import generate_password_hash
 from qqueue import create_app
-from qqueue.models import User
+from qqueue.models import User, Task, Comment
 from qqueue.config import TestConfig
 from qqueue.extensions import database
 
@@ -13,47 +16,48 @@ from qqueue.extensions import database
 user_data = [{'email':f'user{i}@test.net',
               'username':f'user{i}',
               'password':f'test{i}'} for i in range(2)]
-post_data = [{'title': f'Underwater Basket Weaving {i+1}01',
-              'content': f'Step {i}: I put on my robe and wizard hat 🧙‍♂️'} 
-              for i in range(2)]
-comment_data = ['first', 'second']
-tag_data = [f'tag{i}' for i in range(1)]
+task_data = [{'title':f'Order {i}',
+              'description':f'Deliver {i} sprockets to the client.',
+              'due':date(2025, 9, i+1)} for i in range(30)]
+comment1_data = [f'Calibrate them at least {randint(2, 9999)} times!'
+                for _ in range(len(task_data))]
+comment2_data = [f'Delivery postponed by {randint(2, 7)} days.'
+                for _ in range(len(task_data))]
 
 @fixture()
 def application() -> Flask: # pyright: ignore[reportInvalidTypeForm]
-    """Creates an instance of the qqueue app.
-    
-    Each instance is seeded with test records and returned within qqueue's app
-    context for ease of writing tests.
-    """
+    '''Creates an instance of the qqueue app seeded with test data.'''
     app = create_app(TestConfig)
 
     with app.app_context(): # setup test records
         test_users = [User(email=u['email'],
                            username=u['username'],
                            password=generate_password_hash(u['password']))
-                                for u in user_data]
-        # test_posts = [models.Post(title=t['title'],
-        #                           content=t['content'],
-        #                           user=test_users[0])
-        #                           for t in post_data]
-        # test_comments = [models.Comment(content=x,
-        #                                 post=test_posts[0],
-        #                                 user=test_users[0])
-        #                                 for x in comment_data]
-        # test_tags = [models.Tag(name=t) for t in tag_data]
-        # test_posts[0].tags.extend(test_tags)
-
+                            for u in user_data]
+        test_tasks = [Task(title=t['title'],
+                           description=t['description'],
+                           due=t['due'],
+                           user=test_users[randint(0, len(user_data)-1)])
+                            for t in task_data]
+        test_comments1 = [Comment(text=c,
+                                  task=test_tasks[i],
+                                  user=test_users[randint(0, len(user_data)-1)])
+                                   for i, c in enumerate(comment1_data)]
+        test_comments2 = [Comment(text=c,
+                                  task=test_tasks[i],
+                                  user=test_users[randint(0, len(user_data)-1)])
+                                   for i, c in enumerate(comment2_data)]
         database.session.add_all(test_users)
-        # ext.db.session.add_all(test_posts)
-        # ext.db.session.add_all(test_comments)
-        # ext.db.session.add_all(test_tags)
-        # ext.db.session.commit()
+        database.session.add_all(test_tasks)
+        database.session.add_all(test_comments1)
+        database.session.add_all(test_comments2)
+        database.session.commit()
 
         # yielded in app context so downstream fixtures/tests have access to it
         # https://testdriven.io/blog/flask-contexts/#testing-example
         yield app
 
 @fixture()
-def client(application:Flask) -> FlaskClient: # fixtures, pylint:disable=redefined-outer-name
+def client(application:Flask) -> FlaskClient: # fixtures, pylint: disable=redefined-outer-name
+    '''Returns an automated client for simulating user requests.'''
     return application.test_client()
