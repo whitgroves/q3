@@ -1,4 +1,11 @@
-'''Authentication routes for qqueue.'''
+'''
+Authentication routes for qqueue. Includes:
+    /register   - adds a new user to the system
+    /login      - authenticates an existing user
+    /logout     - de-authenticates a logged in user
+
+Note that unlike most routes, these do not need to be prefixed.
+'''
 
 from flask import Blueprint, Response, request, render_template, flash, current_app, redirect, url_for, abort
 from flask_login import login_user, login_required, current_user, logout_user
@@ -39,7 +46,7 @@ def register() -> Response:
                 return redirect(url_for('auth.login'))
             return render_template('register.html', form=form), 400
         case _:
-            current_app.logger.warning(f'405: /auth/register: {request.method}: {request}')
+            current_app.logger.warning(f'405: /register: {request.method}: {request}')
             abort(405)
 
 @blueprint.route('/login', methods=('GET', 'POST'))
@@ -68,7 +75,7 @@ def login() -> Response:
                 return redirect(url_for('main.index'))
             return render_template('login.html', form=form), 400
         case _:
-            current_app.logger.warning(f'405: /auth/login: {request.method}: {request}')
+            current_app.logger.warning(f'405: /login: {request.method}: {request}')
             abort(405)
 
 @login_required

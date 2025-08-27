@@ -1,13 +1,11 @@
 '''Fixtures for automated testing of qqueue.'''
 
-from random import randint
-from datetime import date
 from pytest import fixture
 from flask import Flask, Response, g
 from flask.testing import FlaskClient
 from werkzeug.security import generate_password_hash
 from qqueue import create_app
-from qqueue.models import User, Task
+from qqueue.models import User
 from qqueue.config import TestConfig
 from qqueue.extensions import database
 
@@ -25,7 +23,7 @@ def application() -> Flask: # pyright: ignore[reportInvalidTypeForm]
     with app.app_context(): # setup test records
         test_users = [User(email=user['email'],
                            username=user['username'],
-                           password=generate_password_hash(user['password'])) 
+                           password=generate_password_hash(user['password']))
                            for user in USER_DATA]
         database.session.add_all(test_users)
         database.session.commit()
@@ -39,13 +37,13 @@ def client(application:Flask) -> FlaskClient: # fixtures, pylint: disable=redefi
     '''Returns an automated client for simulating user requests.'''
     return application.test_client()
 
-def authenticate_user(credentials:dict, client:FlaskClient) -> Response:
+def authenticate_user(credentials:dict, client:FlaskClient) -> Response: # pylint: disable=redefined-outer-name
     '''
     Generates a CSRF token then logs the user into the test client to allow
     testing of authenticated endpoints.
 
     Included as a helper function and not a fixture so logins can be done on
-    an ad-hoc basis, rather than for all users every time.
+    an ad-hoc basis, rather than for a predefined set every time.
 
     For a detailed explaination, see:
         https://gist.github.com/singingwolfboy/2fca1de64950d5dfed72?permalink_comment_id=4556252#gistcomment-4556252

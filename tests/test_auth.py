@@ -1,14 +1,5 @@
-"""Test for the auth routes of qqueue.
+"""Test for the auth routes of qqueue."""
 
-For this and other tests against CSRF forms, we do a little wizardry based on
-https://gist.github.com/singingwolfboy/2fca1de64950d5dfed72?permalink_comment_id=4556252#gistcomment-4556252
-to interact with protected forms without having to set WTF_CSRF_ENABLED=False in
-the TestConfig. Essentially, any GET request will generate a valid CSRF token,
-which can then be pulled from flask's global app context (g.csrf_token). 
-
-Notably, a GET request to any CSRF-enabled page will generate the token --
-e.g., GET -> /login followed by POST -> /register will still work.
-"""
 from flask import g #globals
 from flask.testing import FlaskClient
 from tests.conftest import USER_DATA, authenticate_user
@@ -104,7 +95,7 @@ def test_login(client:FlaskClient) -> None:
 
 def test_logout(client:FlaskClient) -> None:
     '''Tests the `/logout` endpoint of the app.'''
-    
+
     # Setup by logging in
     authenticate_user(credentials=USER_DATA[0], client=client)
 
