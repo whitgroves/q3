@@ -13,7 +13,7 @@ from qqueue.extensions import database
 # it's not "best practice" to do this, but it makes writing tests much easier.
 USER_DATA = [{'email':f'user{i}@test.net',
                'username':f'user{i}',
-               'password':f'test{i}'} for i in range(2)]
+               'password':f'pass{i}'} for i in range(2)]
 
 @fixture()
 def application() -> Flask: # pyright: ignore[reportInvalidTypeForm]

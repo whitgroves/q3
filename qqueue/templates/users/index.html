@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} 👥 {% endblock %} Users</h1>
+    <hr>
+    {% if current_user.is_authenticated %}
+        {% for user in users %}
+            <div class="card" style="margin: 8px 0px">
+                <div class="card-header">
+                    <h5 class="card-title"><a href="{{ url_for('users.get_user', user_id=user.id) }}">{{ user.username }}</a></h5>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div>
+            <p>{{ user_count }} users are already on qqueue.</p>
+            <p><a href="{{ url_for('auth.register') }}">Register</a> an account to see their profiles and make requests.</p>
+        </div>
+    {% endif %}
+{% endblock %}

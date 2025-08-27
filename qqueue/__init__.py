@@ -19,9 +19,10 @@ def create_app(config:BaseConfig=DevConfig) -> Flask:
     login.init_app(app=app)
 
     # internal imports to avoid circular references
-    from qqueue.models import User                          # pylint: disable=import-outside-toplevel
-    from qqueue.routes.main import blueprint as main_routes # pylint: disable=import-outside-toplevel
-    from qqueue.routes.auth import blueprint as auth_routes # pylint: disable=import-outside-toplevel
+    from qqueue.models import User                              # pylint: disable=import-outside-toplevel
+    from qqueue.routes.main import blueprint as main_routes     # pylint: disable=import-outside-toplevel
+    from qqueue.routes.auth import blueprint as auth_routes     # pylint: disable=import-outside-toplevel
+    from qqueue.routes.users import blueprint as user_routes    # pylint: disable=import-outside-toplevel
 
     # init login
     login.login_view = 'auth.login'
@@ -32,6 +33,7 @@ def create_app(config:BaseConfig=DevConfig) -> Flask:
     # register routes
     app.register_blueprint(main_routes)
     app.register_blueprint(auth_routes)
+    app.register_blueprint(user_routes, url_prefix='/users')
 
     # init database
     if SQLITE_PREFIX in config.SQLALCHEMY_DATABASE_URI:
