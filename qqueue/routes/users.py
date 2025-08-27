@@ -9,7 +9,7 @@ from flask import Blueprint, Response, request, render_template, flash, current_
 from flask_login import login_user, login_required, current_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from qqueue.forms import RegisterForm, LoginForm
-from qqueue.models import User
+from qqueue.models import User, Request, Order
 from qqueue.extensions import database
 
 blueprint = Blueprint('users', __name__)
@@ -18,13 +18,22 @@ blueprint = Blueprint('users', __name__)
 def index() -> Response:
     data = dict()
     users = User.query.all()
-    if current_user.is_authenticated: data['users'] = users
-    else: data['user_count'] = len(users)
+    if current_user.is_authenticated:
+        data['users'] = users
+    else:
+        data['user_count'] = len(users)
     return render_template('users/index.html', **data)
 
 @blueprint.route('/<int:user_id>')
 def get_user(user_id:int) -> Response:
-    pass
+    data = dict()
+    user = database.session.get(User, user_id)
+    if current_user.is_authenticated:
+        data['user'] = user
+    else:
+        data['completed_requests'] = len(Request.query.join(Request.orders).filter(Request.created_by==user_id, Order.approved_at is not None).all())
+        data['completed_orders'] = len(Order.query.filter(Order.created_by==user_id, Order.approved_at is not None).all())
+    return render_template('users/user.html', **data)
 
 @blueprint.route('/<int:user_id>/edit', methods=('GET', 'POST'))
 def edit_user(user_id:int) -> Response:

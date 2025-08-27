@@ -1,0 +1,15 @@
+{% macro display_user(user) %}
+    <div class="card" style="margin: 8px 0px">
+        <div class="card-header">
+            <h5 class="card-title">
+                <a href="{{ url_for('users.get_user', user_id=user.id) }}">{{ user.username }}</a></h5>
+            <p>{{ user.headline }}</p>
+        </div>
+        <div class="card-body">
+            <p>{{ user.bio }}</p>
+        </div>
+        <div class="card-footer">
+            <p class="card-text"><b>Joined:</b> {{ user.created_at }}</p>
+        </div>
+    </div>
+{% endmacro %}

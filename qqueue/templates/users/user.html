@@ -1,0 +1,28 @@
+{% from 'macros.html' import display_user %}
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} 👥 {% endblock %} Users</h1>
+    <hr>
+    {% if current_user.is_authenticated %}
+        {{ display_user(user) }}
+        {% if current_user.id == user.id %}
+            <button>Edit Profile</button>
+        {% endif %}
+    {% else %}
+        <div>
+            <p>This user 
+                {% if completed_requests > 0 and completed_orders > 0 %}
+                    has already completed {{ completed_requests }} order{% if completed_requests != 1 %}s{% endif %} and fulfilled {{ completed_orders }} order{% if completed_orders != 1 %}s{% endif %} on qqueue.
+                {% elif completed_requests > 0 %}
+                    has already completed {{ completed_requests }} order{% if completed_requests != 1 %}s{% endif %} on qqueue.
+                {% elif completed_orders > 0 %}
+                    has already fulfilled {{ completed_orders }} order{% if completed_orders != 1 %}s{% endif %} on qqueue.
+                {% else %}
+                    is already registered for qqueue.
+                {% endif %}
+            </p>
+            <p><a href="{{ url_for('auth.login') }}">Login</a> or <a href="{{ url_for('auth.register') }}">register</a> to see their profile.</p>
+        </div>
+    {% endif %}
+{% endblock %}
