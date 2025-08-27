@@ -1,0 +1,12 @@
+{% from 'macros.html' import display_tasks %}
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} 📚 {% endblock %} All Tasks</h1>
+    <hr>
+    {% if current_user.is_authenticated %}
+        <a class="btn btn-success" href="{{ url_for('tasks.user_tasks') }}">My Tasks</a>
+        <hr>
+    {% endif %}
+    {{ display_tasks(tasks) }}
+{% endblock %}

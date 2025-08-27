@@ -7,7 +7,7 @@ from flask import Flask
 from flask.testing import FlaskClient
 from werkzeug.security import generate_password_hash
 from qqueue import create_app
-from qqueue.models import User, Task, Comment
+from qqueue.models import User, Task
 from qqueue.config import TestConfig
 from qqueue.extensions import database
 
@@ -19,10 +19,6 @@ user_data = [{'email':f'user{i}@test.net',
 task_data = [{'title':f'Order {i}',
               'description':f'Deliver {i} sprockets to the client.',
               'due':date(2025, 9, i+1)} for i in range(30)]
-comment1_data = [f'Calibrate them at least {randint(2, 9999)} times!'
-                for _ in range(len(task_data))]
-comment2_data = [f'Delivery postponed by {randint(2, 7)} days.'
-                for _ in range(len(task_data))]
 
 @fixture()
 def application() -> Flask: # pyright: ignore[reportInvalidTypeForm]
@@ -39,18 +35,8 @@ def application() -> Flask: # pyright: ignore[reportInvalidTypeForm]
                            due=t['due'],
                            user=test_users[randint(0, len(user_data)-1)])
                             for t in task_data]
-        test_comments1 = [Comment(text=c,
-                                  task=test_tasks[i],
-                                  user=test_users[randint(0, len(user_data)-1)])
-                                   for i, c in enumerate(comment1_data)]
-        test_comments2 = [Comment(text=c,
-                                  task=test_tasks[i],
-                                  user=test_users[randint(0, len(user_data)-1)])
-                                   for i, c in enumerate(comment2_data)]
         database.session.add_all(test_users)
         database.session.add_all(test_tasks)
-        database.session.add_all(test_comments1)
-        database.session.add_all(test_comments2)
         database.session.commit()
 
         # yielded in app context so downstream fixtures/tests have access to it

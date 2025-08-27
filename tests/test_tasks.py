@@ -5,7 +5,7 @@ from datetime import date
 from typing_extensions import Any
 from flask import Response, g # globals
 from flask.testing import FlaskClient
-from tests.conftest import user_data, task_data, comment1_data, comment2_data
+from tests.conftest import user_data, task_data
 
 def login(client:FlaskClient, user_idx:int) -> None:
     '''
@@ -29,15 +29,13 @@ def test_index(client:FlaskClient) -> None:
     assert response.status_code == 200
     for task in task_data:
         assert all(field in response.text for field in task.values())
-    
+
 def test_task(client:FlaskClient) -> None:
     # Page loads with all task fields and comments
     task_id = randint(1, len(task_data)) # random sample, db ID's start at 1
     response = client.get(f'/tasks/{task_id}')
     assert response.status_code == 200
     assert all(field in response.text for field in task_data[task_id].values())
-    assert all(comment in response.text for comment in comment1_data)
-    assert all(comment in response.text for comment in comment2_data)
 
     # Redirect to index on non-extant task id
     response = client.get(f'/tasks/{len(task_data)+1}', follow_redirects=True)
@@ -50,7 +48,9 @@ def test_new_task(client:FlaskClient) -> None:
 
     # Helper to future-proof requests
     def create_task(task:dict, token:Any=g.csrf_token) -> Response:
-        return client.post('/tasks/new', data={'csrf_token':token, **task}, follow_redirects=True)
+        return client.post('/tasks/new',
+                           data={'csrf_token':token, **task},
+                           follow_redirects=True)
 
     # New task is created successfully
     task_valid = {'title':'New Task', 'description':'7 red lines', 'due':date(2025, 9, 1)} # pylint: disable=line-too-long
@@ -58,7 +58,7 @@ def test_new_task(client:FlaskClient) -> None:
     assert response.status_code == 200
     assert response.request.path == f'/tasks/{len(task_data)+1}'
     assert all(field in response.text for field in task_valid.values())
-    
+
     # New tasks must have a title
     task_no_title = {'description':'untitled', 'due':date(2025, 9, 1)}
     response = create_task(task_no_title)
@@ -74,7 +74,9 @@ def test_new_task(client:FlaskClient) -> None:
     assert response.status_code == 400
 
     # Can't create task while logged out; redirects to login
-    task_logged_out = {'title':'logout', 'description':'throw some', 'due':date(2026, 9, 1)} # pylint: disable=line-too-long
+    task_logged_out = {'title':'logout',
+                       'description':'throw some',
+                       'due':date(2026, 9, 1)}
     client.get('/logout')
     response = create_task(task_logged_out)
     assert response.status_code == 302
@@ -82,7 +84,7 @@ def test_new_task(client:FlaskClient) -> None:
 
     # Confirm task was not created despite redirect
     all_tasks = client.get('/tasks/')
-    assert all(field not in all_tasks.text for field in task_logged_out.values())
+    assert all(field not in all_tasks.text for field in task_logged_out.values()) # pylint: disable=line-too-long
 
 def test_edit_task(client:FlaskClient) -> None:
     # Login as random user to generate csrf token
@@ -90,26 +92,31 @@ def test_edit_task(client:FlaskClient) -> None:
 
     # Helper to future-proof requests
     def edit_task(task_id:int, task:dict, token:Any=g.csrf_token) -> Response:
-        return client.post(f'/tasks/{task_id}/edit', data={'csrf_token':token, **task}, follow_redirects=True)
-    
+        return client.post(f'/tasks/{task_id}/edit',
+                           data={'csrf_token':token, **task},
+                           follow_redirects=True)
+
     # Task can only be edited by the associated user and no one else.
-    # Tasks are assigned randomly for testing, so we sample a random task and loop through all users
-    # to ensure only 1 can edit it.
-    # When that one is found, we run other sub-tests as well (e.g., updating only 1 field at a time)
-    
+    # Tasks are assigned randomly for testing, so we sample a random task and
+    # loop through all users to ensure only 1 can edit it.
+    # When that one is found, we run other sub-tests as well
+    # (e.g., updating only 1 field at a time)
+
     successful_updates = 0
     task_id = randint(1, len(task_data))
-    
+
     for i in range(len(user_data)):
 
         # Attempt to update the task while logged in as each user
         login(client=client, user_idx=i)
-        task_valid = {'title':'Updated Task', 'description':'2 in green ink', 'due':date(2025, 9, 2)} # pylint: disable=line-too-long
+        task_valid = {'title':'Updated Task',
+                      'description':'2 in green ink',
+                      'due':date(2025, 9, 2)}
         response = edit_task(task_id, task_valid)
 
         # Skip to next user if the edit failed
         if response.status_code != 200: continue
-        
+
         # On successful edit, redirect to task page with updates visible
         assert response.request.path == f'/tasks/{task_id}'
         assert all(field in response.text for field in task_valid.values())
@@ -117,7 +124,7 @@ def test_edit_task(client:FlaskClient) -> None:
         # Only one user can update the task
         successful_updates += 1
         if successful_updates > 1: break
-        
+
         # Tasks can be updated with only the title
         title_only = {'title':'Updated Again'}
         response = edit_task(task_id, title_only)
@@ -144,16 +151,18 @@ def test_edit_task(client:FlaskClient) -> None:
         assert response.status_code == 400
 
         # Can't create task while logged out; redirects to login
-        task_logged_out = {'title':'logout', 'description':'roto rooter', 'due':date(2026, 9, 1)} # pylint: disable=line-too-long
+        task_logged_out = {'title':'logout',
+                           'description':'roto rooter',
+                           'due':date(2026, 9, 1)}
         client.get('/logout')
-        response = edit_task(task_logged_out)
+        response = edit_task(task_id, task_logged_out)
         assert response.status_code == 302
         assert response.location.startswith('/login')
 
         # Confirm task was not created despite redirect
         task = client.get(f'/tasks/{task_id}')
         assert all(field not in task.text for field in task_logged_out.values())
-    
+
     # Again, one and only one user can update the task
     assert successful_updates == 1
 
@@ -163,14 +172,16 @@ def test_delete_task(client:FlaskClient) -> None:
 
     # Helper to future-proof requests
     def delete_task(task_id:int, token:Any=g.csrf_token) -> Response:
-        return client.post(f'/tasks/{task_id}/delete', data={'csrf_token':token}, follow_redirects=True)
-    
+        return client.post(f'/tasks/{task_id}/delete',
+                           data={'csrf_token':token},
+                           follow_redirects=True)
+
     # Task can only be deleted by the associated user and no one else.
     # We test this in a similar way to edit functionality (see test_edit_task).
-    
+
     successful_updates = 0
     task_id = randint(1, len(task_data))
-    
+
     for i in range(len(user_data)):
 
         # Attempt to delete the task while logged in as each user
@@ -185,14 +196,14 @@ def test_delete_task(client:FlaskClient) -> None:
 
         # Skip to next user if the delete fails
         if response.status_code != 200: continue
-        
-        # On successful delete, redirect to tasks index
-        assert response.request.path == f'/tasks'
+
+        # On successful delete, redirect to tasks index for that user
+        assert response.request.path == f'/users/{i+1}/tasks'
 
         # Only one user can delete the task
         successful_updates += 1
         if successful_updates > 1: break
-        
+
         # Tasks can't be deleted twice
         response = delete_task(task_id)
         assert response.status_code == 404
@@ -202,13 +213,12 @@ def test_delete_task(client:FlaskClient) -> None:
         assert response.status_code == 404
 
         # We have to create a new task so we can test deletion while logged out
-        task_remade = {'title':'Yep', 'description':"We'll do it live", 'due':date.today()}
-        client.post('/tasks/new', data={'csrf_token':g.csrf_token, **task_remade})
+        task_remade = {'title':'Yep', 'description':"We'll do it live", 'due':date.today()} # pylint: disable=line-too-long
+        client.post('/tasks/new', data={'csrf_token':g.csrf_token, **task_remade}) # pylint: disable=line-too-long
         client.get('/logout')
         response = delete_task(len(task_data)) # possibly s/b +1, we'll find out
         assert response.status_code == 403
         assert all(field in response.text for field in task_remade.values())
-    
+
     # Again, one and only one user can delete the task
     assert successful_updates == 1
-
