@@ -22,10 +22,3 @@ class LoginForm(FlaskForm):
     email_or_username = StringField('Email or Username',
                                     validators=input_required(64))
     password = PasswordField('Password', validators=input_required(128))
-
-
-# tasks/new (task)
-class TaskForm(FlaskForm):
-    title = StringField('Title', validators=input_required(128))
-    description = TextAreaField('Description')
-    due = DateTimeLocalField('Due By', validators=input_required())

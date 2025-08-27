@@ -19,18 +19,3 @@ class User(UserMixin, database.Model): # pylint: disable=too-few-public-methods
 
     def __repr__(self):
         return f'<User {self.id}: "{self.username}" ({self.email})>'
-
-
-class Task(database.Model): # pylint: disable=too-few-public-methods
-    '''Defines the table fields for user tasks.'''
-    id = Column(Integer, primary_key=True)
-    title = Column(String(128), nullable=False)
-    description = Column(Text)
-    created = Column(DateTime(timezone=True), server_default=func.now()) # pylint: disable=not-callable
-    started = Column(DateTime(timezone=True))
-    due = Column(DateTime(timezone=True), nullable=False)
-    completed = Column(DateTime(timezone=True))
-    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
-
-    def __repr__(self):
-        return f'<Task {self.id}: "{self.title}" (user id: {self.user_id})>'
