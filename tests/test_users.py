@@ -11,8 +11,9 @@ def test_index(client:FlaskClient) -> None:
     # Future-proofing
     endpoint = '/users'
     recruit_msgs = [
-        f'{len(USER_DATA)} users are already on qqueue.',
-        'Register</a> an account to see their profiles and make requests.'
+        f'{len(USER_DATA)} user{"s are" if len(USER_DATA) != 1 else "is"} already on qqueue.', #pylint: disable=line-too-long
+        '>Login</a> or <a href=',
+        '>register</a> to see user profiles and make requests.',
     ]
 
     # Can't see any user data when not logged in, but prompted to join

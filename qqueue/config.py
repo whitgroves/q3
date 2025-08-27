@@ -19,7 +19,7 @@ class DevConfig(BaseConfig): # pylint: disable=too-few-public-methods
     SECRET_KEY = os.environ.get('QQ_SECRET_KEY') or \
           'AnEmbarassingPhotoOfSpongeBobAtTheChristmasParty'
     SQLALCHEMY_DATABASE_URI = SQLITE_PREFIX + \
-        os.path.join(DATABASE_DIR, 'qqueue.db')
+        os.path.join(DATABASE_DIR, 'qqdev.db')
 
 
 class TestConfig(BaseConfig): # pylint: disable=too-few-public-methods
@@ -30,7 +30,8 @@ class TestConfig(BaseConfig): # pylint: disable=too-few-public-methods
     TESTING = True
 
 
-class CloudConfig(BaseConfig): # pylint: disable=too-few-public-methods
+class ProdConfig(BaseConfig): # pylint: disable=too-few-public-methods
     '''Configuration for deployed (AWS) instances of the app.'''
     SECRET_KEY = os.environ.get('QQ_SECRET_KEY')
-    SQLALCHEMY_DATABASE_URI = os.environ.get('QQ_DATABASE_URI')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('QQ_DATABASE_URI') or \
+        SQLITE_PREFIX + os.path.join(DATABASE_DIR, 'qqueue.db')

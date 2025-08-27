@@ -1,19 +1,29 @@
 '''Fixtures for automated testing of qqueue.'''
 
+from datetime import datetime, timedelta
 from pytest import fixture
 from flask import Flask, Response, g
 from flask.testing import FlaskClient
 from werkzeug.security import generate_password_hash
 from qqueue import create_app
-from qqueue.models import User
+from qqueue.models import User, Request, Order, Comment
 from qqueue.config import TestConfig
 from qqueue.extensions import database
 
 # initialized outside of the app fixture so the other test modules can access.
 # it's not "best practice" to do this, but it makes writing tests much easier.
 USER_DATA = [{'email':f'user{i}@test.net',
-               'username':f'user{i}',
-               'password':f'pass{i}'} for i in range(2)]
+              'username':f'user{i}',
+              'password':f'pass{i}'} for i in range(2)]
+REQUEST_DATA = [{'summary':f'Setup {i} laptops',
+                 'reward_amount':50.0*i,
+                 'reward_currency':'USD',
+                 'due_by':datetime.now()+timedelta(days=i),
+                 'created_by':1} for i in range(2, 13)] # all requests are owned by user0 (id: 1)
+ORDER_DATA = [{'request_id':i+1, 'created_by':2}        # all orders are owned by user1 (id: 2)
+              for i, _ in enumerate(REQUEST_DATA)]
+COMMENT_DATA = [{'order_id':i+1, 'created_by':1, 'text':f'test {i}{i+1}{i+2}'}
+                for i, _ in enumerate(ORDER_DATA)]
 
 @fixture()
 def application() -> Flask: # pyright: ignore[reportInvalidTypeForm]
@@ -25,7 +35,13 @@ def application() -> Flask: # pyright: ignore[reportInvalidTypeForm]
                            username=user['username'],
                            password=generate_password_hash(user['password']))
                            for user in USER_DATA]
+        test_requests = [Request(**request) for request in REQUEST_DATA]
+        test_orders = [Order(**order) for order in ORDER_DATA]
+        test_comments = [Comment(**comment) for comment in COMMENT_DATA]
         database.session.add_all(test_users)
+        database.session.add_all(test_requests)
+        database.session.add_all(test_orders)
+        database.session.add_all(test_comments)
         database.session.commit()
 
         # yielded in app context so downstream fixtures/tests have access to it
