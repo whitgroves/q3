@@ -11,101 +11,102 @@ e.g., GET -> /login followed by POST -> /register will still work.
 """
 from flask import g #globals
 from flask.testing import FlaskClient
-from tests.conftest import user_data
-
-user = user_data[0]
+from tests.conftest import USER_DATA, authenticate_user
 
 def test_register(client:FlaskClient) -> None:
+    '''Tests the `/register` endpoint of the app.'''
+
+    # Manually create CSRF token since user cannot login yet
+    response = client.get('/register')
+
     # All fields present on form
-    response_get = client.get('/register') # creates CSRF token - do NOT move
-    assert all(x in response_get.text
-               for x in ['Email', 'Username', 'Password'])
+    assert all(x in response.text for x in ['Email', 'Username', 'Password'])
 
     # Registration denied without CSRF token
-    register_user_data = {'email': 'auth@test.net',
-                          'password': 'authtest',
-                          'username': 'authtest',
-                          'confirm_password': 'authtest'}
-    response_post_no_csrf = client.post('/register', data=register_user_data)
-    assert response_post_no_csrf.status_code == 400
+    registration = {'email': 'auth@test.net',
+                    'password': 'authtest',
+                    'username': 'authtest',
+                    'confirm_password': 'authtest'}
+    response = client.post('/register', data=registration)
+    assert response.status_code == 400
 
     # Registration accepted with CSRF token and redirects to login on success
-    post_data_csrf = {'csrf_token':g.csrf_token, **register_user_data}
-    response_post_csrf = client.post('/register',
-                                     data=post_data_csrf,
-                                     follow_redirects=True)
-    assert response_post_csrf.status_code == 200
-    assert len(response_post_csrf.history) == 1
-    assert response_post_csrf.request.path == '/login'
+    with_token = {'csrf_token':g.csrf_token, **registration}
+    response = client.post('/register', data=with_token, follow_redirects=True)
+    assert response.status_code == 200
+    assert len(response.history) == 1
+    assert response.request.path == '/login'
 
     # Duplicate email is rejected, even with token
-    response_post_dupe = client.post('/register', data=post_data_csrf)
-    assert response_post_dupe.status_code == 400
+    response = client.post('/register', data=with_token)
+    assert response.status_code == 400
+
+    # User can authenticate with newly created credentials
+    response = authenticate_user(credentials=registration, client=client)
+    assert response.status_code == 200
 
 def test_login(client:FlaskClient) -> None:
+    '''
+    Tests the `/login` endpoint of the app. 
+    
+    Does not use `authenticate_user` since it assumes that `/login`
+    works without testing it, which is the point of this function.
+    '''
     # All fields present on form
-    response_get = client.get('/login') # creates CSRF token - do NOT move
-    assert all(x in response_get.text
-               for x in ['Email or Username', 'Password'])
+    response = client.get('/login') # creates CSRF token - do NOT move
+    assert all(x in response.text for x in ['Email or Username', 'Password'])
 
     # User can login with email and is redirected to homepage
-    post_data_email = {'csrf_token': g.csrf_token,
-                       'email_or_username': user['email'],
-                       'password': user['password']}
-    response_post_email = client.post('/login',
-                                      data=post_data_email,
-                                      follow_redirects=True)
-    assert response_post_email.status_code == 200
-    assert len(response_post_email.history) == 1
-    assert response_post_email.request.path == '/'
+    credentials = USER_DATA[0]
+    with_email = {'csrf_token': g.csrf_token,
+                  'email_or_username': credentials['email'],
+                  'password': credentials['password']}
+    response = client.post('/login', data=with_email, follow_redirects=True)
+    assert response.status_code == 200
+    assert len(response.history) == 1
+    assert response.request.path == '/'
 
     # User can login with username and is redirected to homepage
-    post_data_username = {'csrf_token': g.csrf_token,
-                          'email_or_username': user['username'],
-                          'password':user['password']}
-    response_post_username = client.post('/login',
-                                         data=post_data_username,
-                                         follow_redirects=True)
-    assert response_post_username.status_code == 200
-    assert len(response_post_username.history) == 1
-    assert response_post_username.request.path == '/'
+    with_username = {'csrf_token': g.csrf_token,
+                    'email_or_username': credentials['username'],
+                    'password':credentials['password']}
+    response = client.post('/login', data=with_username, follow_redirects=True)
+    assert response.status_code == 200
+    assert len(response.history) == 1
+    assert response.request.path == '/'
 
     # Login denied without CSRF token, even with valid credentials
-    post_data_no_csrf = {'email_or_username': user['email'],
-                         'password': user['password']}
-    response_post_no_csrf = client.post('/login', data=post_data_no_csrf)
-    assert response_post_no_csrf.status_code == 400
+    no_token = {'email_or_username': credentials['email'],
+                'password': credentials['password']}
+    response = client.post('/login', data=no_token)
+    assert response.status_code == 400
 
     # Login denied with invalid password, even with CSRF token
-    post_data_bad_password = {'csrf_token': g.csrf_token,
-                              'email_or_username':user['email'],
-                              'password': 'wrong'}
-    response_post_bad_password = client.post('/login',
-                                             data=post_data_bad_password)
-    assert response_post_bad_password.status_code == 400
+    bad_password = {'csrf_token': g.csrf_token,
+                    'email_or_username':credentials['email'],
+                    'password': 'wrong'}
+    response = client.post('/login', data=bad_password)
+    assert response.status_code == 400
 
     # Login denied with non-registered email
-    post_data_bad_email = {'csrf_token': g.csrf_token,
-                           'email_or_username': 'user@wrong.com',
-                           'password': user['password']}
-    response_post_bad_email = client.post('/login', data=post_data_bad_email)
-    assert response_post_bad_email.status_code == 400
+    bad_email = {'csrf_token': g.csrf_token,
+                 'email_or_username': 'user@wrong.com',
+                 'password': credentials['password']}
+    response = client.post('/login', data=bad_email)
+    assert response.status_code == 400
 
     # Login denied with non-registered username
-    post_data_bad_username = {'csrf_token': g.csrf_token,
-                              'email_or_username': 'not_a_user',
-                              'password': user['password']}
-    response_post_bad_username = client.post('/login',
-                                             data=post_data_bad_username)
-    assert response_post_bad_username.status_code == 400
+    bad_username = {'csrf_token': g.csrf_token,
+                    'email_or_username': 'not_a_user',
+                    'password': credentials['password']}
+    response = client.post('/login', data=bad_username)
+    assert response.status_code == 400
 
 def test_logout(client:FlaskClient) -> None:
-    # Setup - login
-    client.get('/login') # creates CSRF token - do NOT move
-    login_data = {'csrf_token': g.csrf_token,
-                  'email_or_username': user['email'],
-                  'password': user['password']}
-    client.post('/login', data=login_data)
+    '''Tests the `/logout` endpoint of the app.'''
+    
+    # Setup by logging in
+    authenticate_user(credentials=USER_DATA[0], client=client)
 
     # Logout redirects to the homepage
     response = client.get('/logout', follow_redirects=True)
