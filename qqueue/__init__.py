@@ -41,9 +41,25 @@ def create_app(config:BaseConfig=DevConfig) -> Flask:
     if SQLITE_PREFIX in config.SQLALCHEMY_DATABASE_URI:
         os.makedirs(DATABASE_DIR, exist_ok=True)
     with app.app_context():
-        tables = [User, Task]
-        if app.testing or not all(inspect(database.engine).has_table(x.__tablename__) for x in tables): #pylint: disable=line-too-long
-            app.logger.warning('Rebuilding database...')
+        rebuild_database = app.testing # Always rebuild on test
+        if not rebuild_database:    
+            inspector = inspect(database.engine)
+            # Don't forget to add new tables !!!
+            for table in [User, Task]:
+                # Check that each table exists
+                if not inspector.has_table(table.__tablename__):
+                    rebuild_database = True
+                # And if it does, that all its columns are present in the model
+                if not rebuild_database:
+                    for column in inspector.get_columns(table.__tablename__):
+                        if not hasattr(table, column['name']):
+                            rebuild_database = True
+                            break        
+                # If any snags are hit, stop immediately
+                else: break
+        # if (vs else) in case flag flipped during integrity check
+        if rebuild_database:
+            app.logger.log(level=(20 if app.testing else 40), msg='Rebuilding database...')
             database.drop_all()
             database.create_all()
     app.logger.info('Database ready.')
