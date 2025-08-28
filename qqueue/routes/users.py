@@ -9,7 +9,7 @@ from flask import Blueprint, Response, request, render_template, flash, current_
 from flask_login import login_user, login_required, current_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from qqueue.forms import UserForm
-from qqueue.models import User, Request, Order
+from qqueue.models import User
 from qqueue.extensions import database
 
 blueprint = Blueprint('users', __name__)
@@ -27,11 +27,12 @@ def index() -> Response:
 @blueprint.route('/<int:user_id>')
 def get_user(user_id:int) -> Response:
     data = dict()
+    user = database.session.get(User, user_id)
     if current_user.is_authenticated:
-        data['user'] = database.session.get(User, user_id)
+        data['user'] = user
     else:
-        data['completed_requests'] = len(Request.query.join(Request.orders).filter(Request.created_by==user_id, Order.approved_at is not None).all())
-        data['completed_orders'] = len(Order.query.filter(Order.created_by==user_id, Order.approved_at is not None).all())
+        data['has_requests'] = len(user.requests) > 0
+        data['has_orders'] = len(user.orders) > 0
     return render_template('users/user.html', **data)
 
 @blueprint.route('/edit', methods=('GET', 'POST'))

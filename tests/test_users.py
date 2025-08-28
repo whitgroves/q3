@@ -10,7 +10,7 @@ def test_index(client:FlaskClient) -> None:
 
     # Future-proofing
     endpoint = '/users'
-    recruit_msgs = [
+    recruit_text = [
         f'{len(USER_DATA)} user{"s are" if len(USER_DATA) != 1 else "is"} already on qqueue.', #pylint: disable=line-too-long
         '>Login</a> or <a href=',
         '>register</a> to see user profiles and make requests.',
@@ -19,7 +19,7 @@ def test_index(client:FlaskClient) -> None:
     # Can't see any user data when not logged in, but prompted to join
     response = client.get(endpoint, follow_redirects=True)
     assert response.status_code == 200
-    assert all(msg in response.text for msg in recruit_msgs)
+    assert all(text in response.text for text in recruit_text)
     assert all(user['email'] not in response.text for user in USER_DATA)
     assert all(user['username'] not in response.text for user in USER_DATA)
     assert all(user['password'] not in response.text for user in USER_DATA)
@@ -28,7 +28,7 @@ def test_index(client:FlaskClient) -> None:
     authenticate_user(credentials=choice(USER_DATA), client=client)
     response = client.get(endpoint, follow_redirects=True)
     assert response.status_code == 200
-    assert all(msg not in response.text for msg in recruit_msgs)
+    assert all(text not in response.text for text in recruit_text)
     assert all(user['username'] in response.text for user in USER_DATA)
     assert all(user['email'] not in response.text for user in USER_DATA)
     assert all(user['password'] not in response.text for user in USER_DATA)
@@ -36,25 +36,38 @@ def test_index(client:FlaskClient) -> None:
 def test_user(client:FlaskClient) -> None:
     '''Tests the endpoint `/users/<user_id>`.'''
 
-    # Helper for endpoint calls
+    # Future-proofing
+    recruit_text = {
+        'requests': 'This user is already making requests on qqueue.',
+        'orders': 'This user is already fulfilling orders on qqueue.',
+        'both': 'This user is already making requests and fulfilling orders on qqueue.',
+        'neither': 'This user is already registered for qqueue.',
+    }
     def endpoint(user_id:int) -> str:
         return f'/users/{user_id}'
+    
 
     # If not logged in, get a recruitment message with their username
     # We use user3 (id: 4) since they have neither requests nor orders
     response = client.get(endpoint(4), follow_redirects=True)
     assert response.status_code == 200
-    assert 'already' in response.text
+    assert recruit_text['requests'] not in response.text
+    assert recruit_text['orders'] not in response.text
+    assert recruit_text['both'] not in response.text
+    assert recruit_text['neither'] in response.text
     assert all(user['email'] not in response.text for user in USER_DATA)
     assert all(user['username'] not in response.text for user in USER_DATA)
     assert all(user['password'] not in response.text for user in USER_DATA)
 
-    # Once logged in, username, tagline, and bio are visible,
-    # along with open requests and completed orders
+    # Once logged in, username, tagline, and bio are visible.
+    # TODO: see open requests and completed orders
     authenticate_user(credentials=USER_DATA[choice([0, 1, 2])], client=client)
     response = client.get(endpoint(4), follow_redirects=True)
     assert response.status_code == 200
-    assert 'already' not in response.text
+    assert recruit_text['requests'] not in response.text
+    assert recruit_text['orders'] not in response.text
+    assert recruit_text['both'] not in response.text
+    assert recruit_text['neither'] not in response.text
     assert USER_DATA[3]['username'] in response.text
     assert USER_DATA[3]['headline'] in response.text
     assert USER_DATA[3]['bio'] in response.text
@@ -74,25 +87,31 @@ def test_user(client:FlaskClient) -> None:
     # Only requests completed (user0)
     response = client.get(endpoint(1), follow_redirects=True)
     assert response.status_code == 200
-    assert 'completed' in response.text.lower()
-    assert 'fulfilled' not in response.text.lower()
+    assert recruit_text['requests'] in response.text
+    assert recruit_text['orders'] not in response.text
+    assert recruit_text['both'] not in response.text
+    assert recruit_text['neither'] not in response.text
 
     # Only orders fulfilled (user1)
     response = client.get(endpoint(2), follow_redirects=True)
     assert response.status_code == 200
-    assert 'completed' not in response.text.lower()
-    assert 'fulfilled' in response.text.lower()
+    assert recruit_text['requests'] not in response.text
+    assert recruit_text['orders'] in response.text
+    assert recruit_text['both'] not in response.text
+    assert recruit_text['neither'] not in response.text
 
     # Both orders and requests completed (user2)
     response = client.get(endpoint(3), follow_redirects=True)
     assert response.status_code == 200
-    assert 'completed' in response.text.lower()
-    assert 'fulfilled' in response.text.lower()
+    assert recruit_text['requests'] not in response.text
+    assert recruit_text['orders'] not in response.text
+    assert recruit_text['both'] in response.text
+    assert recruit_text['neither'] not in response.text
 
 def test_edit(client:FlaskClient) -> None:
     '''Tests the endpoint `/users/edit`.'''
 
-    # Helper for endpoint calls
+    # Future-proofing
     endpoint = '/users/edit'
     new_data = {'email':'test-1@test.net',
                 'username':'test-1',

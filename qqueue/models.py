@@ -15,11 +15,11 @@ class User(UserMixin, database.Model): # pylint: disable=too-few-public-methods
     created_at = Column(DateTime(timezone=True), server_default=func.now()) # pylint: disable=not-callable
     headline = Column(String(256))
     bio = Column(Text)
-    requests = database.relationship('Request', backref='user', cascade=CASCADE)
-    orders = database.relationship('Order', backref='user', cascade=CASCADE)
+    requests = database.relationship('Task', primaryjoin='User.id == Task.created_by', backref='requester', cascade=CASCADE)
+    orders = database.relationship('Task', primaryjoin='User.id == Task.accepted_by', backref='provider', cascade=CASCADE)
 
 
-class Request(database.Model): # pylint: disable=too-few-public-methods
+class Task(database.Model): # pylint: disable=too-few-public-methods
     id = Column(Integer, primary_key=True)
     summary = Column(String(256), nullable=False)
     description = Column(Text)
@@ -29,23 +29,16 @@ class Request(database.Model): # pylint: disable=too-few-public-methods
     created_at = Column(DateTime(timezone=True), server_default=func.now()) # pylint: disable=not-callable
     created_by = Column(Integer, ForeignKey('user.id'), nullable=False)
     accepted_at = Column(DateTime(timezone=True))
-    orders = database.relationship('Order', backref='request', cascade=CASCADE)
-
-
-class Order(database.Model): # pylint: disable=too-few-public-methods
-    id = Column(Integer, primary_key=True)
-    request_id = Column(Integer, ForeignKey('request.id'), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now()) # pylint: disable=not-callable
-    created_by = Column(Integer, ForeignKey('user.id'), nullable=False)
+    accepted_by = Column(Integer, ForeignKey('user.id'))
     completed_at = Column(DateTime(timezone=True))
     approved_at = Column(DateTime(timezone=True))
     rejected_at = Column(DateTime(timezone=True))
-    comments = database.relationship('Comment', backref='order', cascade=CASCADE)
+    comments = database.relationship('Comment', backref='task', cascade=CASCADE)
 
 
 class Comment(database.Model): # pylint: disable=too-few-public-methods
     id = Column(Integer, primary_key=True)
-    order_id = Column(Integer, ForeignKey('order.id'), nullable=False)
+    task_id = Column(Integer, ForeignKey('task.id'), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now()) # pylint: disable=not-callable
     created_by = Column(Integer, ForeignKey('user.id'), nullable=False)
     text = Column(Text, nullable=False)

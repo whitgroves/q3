@@ -11,15 +11,15 @@
         {% endif %}
     {% else %}
         <div>
-            <p>This user 
-                {% if completed_requests > 0 and completed_orders > 0 %}
-                    has already completed {{ completed_requests }} request{% if completed_requests != 1 %}s{% endif %} and fulfilled {{ completed_orders }} order{% if completed_orders != 1 %}s{% endif %} on qqueue.
-                {% elif completed_requests > 0 %}
-                    has already completed {{ completed_requests }} request{% if completed_requests != 1 %}s{% endif %} on qqueue.
-                {% elif completed_orders > 0 %}
-                    has already fulfilled {{ completed_orders }} order{% if completed_orders != 1 %}s{% endif %} on qqueue.
+            <p>
+                {% if has_requests and has_orders %}
+                    This user is already making requests and fulfilling orders on qqueue.
+                {% elif has_requests %}
+                    This user is already making requests on qqueue.
+                {% elif has_orders %}
+                    This user is already fulfilling orders on qqueue.
                 {% else %}
-                    is already registered for qqueue.
+                    This user is already registered for qqueue.
                 {% endif %}
             </p>
             <p><a href="{{ url_for('auth.login') }}">Login</a> or <a href="{{ url_for('auth.register') }}">register</a> to see their profile.</p>
