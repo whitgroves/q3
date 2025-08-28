@@ -36,7 +36,7 @@ def test_index(client:FlaskClient) -> None:
 def test_user(client:FlaskClient) -> None:
     '''Tests the endpoint `/users/<user_id>`.'''
     
-    # Future-proofing
+    # Helper for ad-hoc calls
     def endpoint(user_id:int) -> str:
         return f'/users/{user_id}'
     
@@ -44,7 +44,7 @@ def test_user(client:FlaskClient) -> None:
     # We use user3 (id: 4) since they have neither requests nor orders in the system
     response = client.get(endpoint(4), follow_redirects=True)
     assert response.status_code == 200
-    # TODO: check recruitment messages
+    assert 'already' in response.text
     assert all(user['email'] not in response.text for user in USER_DATA)
     assert all(user['username'] not in response.text for user in USER_DATA)
     assert all(user['password'] not in response.text for user in USER_DATA)
@@ -53,7 +53,7 @@ def test_user(client:FlaskClient) -> None:
     authenticate_user(credentials=USER_DATA[choice([0, 1, 2])], client=client)
     response = client.get(endpoint(4), follow_redirects=True)
     assert response.status_code == 200
-    # TODO: check for absence of recruitment messages
+    assert 'already' not in response.text
     assert USER_DATA[3]['username'] in response.text
     assert USER_DATA[3]['headline'] in response.text
     assert USER_DATA[3]['bio'] in response.text

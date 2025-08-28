@@ -13,9 +13,9 @@
         <div>
             <p>This user 
                 {% if completed_requests > 0 and completed_orders > 0 %}
-                    has already completed {{ completed_requests }} order{% if completed_requests != 1 %}s{% endif %} and fulfilled {{ completed_orders }} order{% if completed_orders != 1 %}s{% endif %} on qqueue.
+                    has already completed {{ completed_requests }} request{% if completed_requests != 1 %}s{% endif %} and fulfilled {{ completed_orders }} order{% if completed_orders != 1 %}s{% endif %} on qqueue.
                 {% elif completed_requests > 0 %}
-                    has already completed {{ completed_requests }} order{% if completed_requests != 1 %}s{% endif %} on qqueue.
+                    has already completed {{ completed_requests }} request{% if completed_requests != 1 %}s{% endif %} on qqueue.
                 {% elif completed_orders > 0 %}
                     has already fulfilled {{ completed_orders }} order{% if completed_orders != 1 %}s{% endif %} on qqueue.
                 {% else %}
