@@ -7,7 +7,7 @@
     {% if current_user.is_authenticated %}
         {{ display_user(user) }}
         {% if current_user.id == user.id %}
-            <button>Edit Profile</button>
+            <p><a href="{{ url_for('users.edit_user')}}"><button type="submit" class="btn btn-primary">Edit Profile</button></a></p>
         {% endif %}
     {% else %}
         <div>

@@ -1,6 +1,6 @@
 '''Secured forms for qqueue built on WTForms + Flask-WTF.'''
 
-from wtforms import EmailField, StringField, PasswordField, TextAreaField, DateTimeLocalField
+from wtforms import EmailField, StringField, PasswordField, TextAreaField
 from wtforms.validators import InputRequired, Length
 from flask_wtf import FlaskForm
 
@@ -22,3 +22,14 @@ class LoginForm(FlaskForm):
     email_or_username = StringField('Email or Username',
                                     validators=input_required(64))
     password = PasswordField('Password', validators=input_required(128))
+
+
+# user
+class UserForm(FlaskForm):
+    email = EmailField('Email', validators=[Length(max=64)])
+    username = StringField('Username', validators=[Length(max=32)])
+    password = PasswordField('Password', validators=[Length(max=128)])
+    confirm_password = PasswordField('Confirm Password', validators=[Length(max=128)])
+    headline = StringField('Headline', validators=[Length(max=256)])
+    bio = TextAreaField('Bio')
+    current_password = PasswordField('Current Password', validators=input_required(128))

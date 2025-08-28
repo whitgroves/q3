@@ -18,25 +18,25 @@ USER_DATA = [{'email':f'user{i}@test.net',
 
 # requests have specific tests that require marking some as fulfilled or under
 # a different user than the default (user0). To this end, test data are
-# created semi-uniformly, then modified to setup test cases. 
+# created semi-uniformly, then modified to setup test cases.
 REQUEST_DATA = [{'summary':f'Setup {i} laptops',
                  'reward_amount':50.0*i,
                  'reward_currency':'USD',
                  'due_by':datetime.now()+timedelta(days=i),
-                 'created_by':1} for i in range(2, 13)] # user0 (id:1) owns all requests by default
-ORDER_DATA = [{'request_id':i+1, 'created_by':2}        # user1 (id:2) owns all orders by default
+                 'created_by':1} for i in range(2, 13)] # user0 (id:1)
+ORDER_DATA = [{'request_id':i+1, 'created_by':2}        # user1 (id:2)
               for i, _ in enumerate(REQUEST_DATA)]
 COMMENT_DATA = [{'order_id':i+1, 'created_by':1, 'text':f'test {i}{i+1}{i+2}'}
-                for i, _ in enumerate(ORDER_DATA)]      # user0 (id:1) owns all comments by default
+                for i, _ in enumerate(ORDER_DATA)]      # user0 (id:1)
 
-# user0 (id: 1) should have a fulfilled request, and user1 (id: 2) should have a completed order
-# since they own all requests and orders respectively, marking the first order complete and
-# approved should accomplish this.
+# user0 (id: 1) should have a fulfilled request, and user1 (id: 2) should have
+# a completed order since they own all requests and orders respectively,
+# marking the first order complete and approved should accomplish this.
 ORDER_DATA[0]['completed_at'] = datetime.now()-timedelta(hours=12)
 ORDER_DATA[0]['approved_at'] = datetime.now()-timedelta(hours=6)
 
-# user2 (id: 3) needs both an order and a request done, so we make them owner (created_by) of
-# request[1] and order[2], then mark those done as well.
+# user2 (id: 3) needs both an order and a request done, so we make them owner
+# (created_by) of request[1] and order[2], then mark those done as well.
 REQUEST_DATA[1]['created_by'] = 3
 ORDER_DATA[2]['created_by'] = 3
 ORDER_DATA[1]['completed_at'] = datetime.now()-timedelta(hours=12)
@@ -44,7 +44,7 @@ ORDER_DATA[1]['approved_at'] = datetime.now()-timedelta(hours=6)
 ORDER_DATA[2]['completed_at'] = datetime.now()-timedelta(hours=12)
 ORDER_DATA[2]['approved_at'] = datetime.now()-timedelta(hours=6)
 
-# user3 (id:4) needs neither orders nor requests, but they do need a tagline and bio
+# user3 (id:4) needs neither, but they do need a tagline and bio
 USER_DATA[3]['headline'] = '3rd rock'
 USER_DATA[3]['bio'] = 'Most definitely not an extraterrestrial'
 
@@ -53,10 +53,10 @@ def application() -> Flask: # pyright: ignore[reportInvalidTypeForm]
     '''Creates an instance of the qqueue app seeded with test data.'''
     app = create_app(TestConfig)
 
-    # since some users have custom fields, we populate the db with an unpacked dict
-    # the side effect is passwords are unhashed, so we copy the dict and hash them
-    # separately, allowing for properly stored passwords but also authentication
-    # by the test client.
+    # since some users have custom fields, we populate the db with an unpacked
+    # dict the side effect is passwords are unhashed, so we copy the dict and
+    # hash them separately, allowing for properly stored passwords but also
+    # authentication by the test client.
     hashed_user_data = [user.copy() for user in USER_DATA]
     for user in hashed_user_data:
         user['password'] = generate_password_hash(user['password'])
