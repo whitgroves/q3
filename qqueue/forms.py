@@ -33,3 +33,8 @@ class UserForm(FlaskForm):
     headline = StringField('Headline', validators=[Length(max=256)])
     bio = TextAreaField('Bio')
     current_password = PasswordField('Current Password', validators=input_required(128))
+
+
+# task
+class TaskForm(FlaskForm):
+    pass

@@ -43,6 +43,7 @@ def test_user(client:FlaskClient) -> None:
         'both': 'This user is already making requests and fulfilling orders on qqueue.',
         'neither': 'This user is already registered for qqueue.',
     }
+    task_link_text = ['Open Requests', 'Completed Orders']
     def endpoint(user_id:int) -> str:
         return f'/users/{user_id}'
     
@@ -58,9 +59,10 @@ def test_user(client:FlaskClient) -> None:
     assert all(user['email'] not in response.text for user in USER_DATA)
     assert all(user['username'] not in response.text for user in USER_DATA)
     assert all(user['password'] not in response.text for user in USER_DATA)
+    assert all(text not in response.text for text in task_link_text)
 
-    # Once logged in, username, tagline, and bio are visible.
-    # TODO: see open requests and completed orders
+    # Once logged in, username, tagline, and bio are visible for that user
+    # and not any others.
     authenticate_user(credentials=USER_DATA[choice([0, 1, 2])], client=client)
     response = client.get(endpoint(4), follow_redirects=True)
     assert response.status_code == 200
@@ -71,7 +73,10 @@ def test_user(client:FlaskClient) -> None:
     assert USER_DATA[3]['username'] in response.text
     assert USER_DATA[3]['headline'] in response.text
     assert USER_DATA[3]['bio'] in response.text
-
+    assert all(text in response.text for text in task_link_text)
+    assert all(user['username'] not in response.text
+               for i, user in enumerate(USER_DATA) if i != 3)
+    
     # When logged in as that user, can see the same info + option to edit
     authenticate_user(credentials=USER_DATA[3], client=client)
     response = client.get(endpoint(4), follow_redirects=True)
@@ -79,9 +84,12 @@ def test_user(client:FlaskClient) -> None:
     assert USER_DATA[3]['username'] in response.text
     assert USER_DATA[3]['headline'] in response.text
     assert USER_DATA[3]['bio'] in response.text
-    assert 'edit' in response.text.lower()
+    assert 'Edit Profile' in response.text
+    assert all(text in response.text for text in task_link_text)
+    assert all(user['username'] not in response.text
+               for i, user in enumerate(USER_DATA) if i != 3)
 
-    # Logout, then check specific users for...
+    # Logout, then check recruitment messages for...
     client.get('/logout')
 
     # Only requests completed (user0)

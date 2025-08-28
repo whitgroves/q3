@@ -19,10 +19,11 @@ def create_app(config:BaseConfig=DevConfig) -> Flask:
     login.init_app(app=app)
 
     # internal imports to avoid circular references
-    from qqueue.models import User                              # pylint: disable=import-outside-toplevel
+    from qqueue.models import User, Task                        # pylint: disable=import-outside-toplevel
     from qqueue.routes.main import blueprint as main_routes     # pylint: disable=import-outside-toplevel
     from qqueue.routes.auth import blueprint as auth_routes     # pylint: disable=import-outside-toplevel
     from qqueue.routes.users import blueprint as user_routes    # pylint: disable=import-outside-toplevel
+    from qqueue.routes.tasks import blueprint as task_routes    # pylint: disable=import-outside-toplevel
 
     # init login
     login.login_view = 'auth.login'
@@ -34,12 +35,13 @@ def create_app(config:BaseConfig=DevConfig) -> Flask:
     app.register_blueprint(main_routes)
     app.register_blueprint(auth_routes)
     app.register_blueprint(user_routes, url_prefix='/users')
+    app.register_blueprint(task_routes, url_prefix='/tasks')
 
     # init database
     if SQLITE_PREFIX in config.SQLALCHEMY_DATABASE_URI:
         os.makedirs(DATABASE_DIR, exist_ok=True)
     with app.app_context():
-        tables = [User]
+        tables = [User, Task]
         if app.testing or not all(inspect(database.engine).has_table(x.__tablename__) for x in tables): #pylint: disable=line-too-long
             app.logger.warning('Rebuilding database...')
             database.drop_all()
