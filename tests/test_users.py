@@ -33,7 +33,7 @@ def test_index(client:FlaskClient) -> None:
     assert all(user['email'] not in response.text for user in USER_DATA)
     assert all(user['password'] not in response.text for user in USER_DATA)
 
-def test_user(client:FlaskClient) -> None:
+def test_get_user(client:FlaskClient) -> None:
     '''Tests the endpoint `/users/<user_id>`.'''
 
     # Future-proofing
@@ -116,7 +116,7 @@ def test_user(client:FlaskClient) -> None:
     assert recruit_text['both'] in response.text
     assert recruit_text['neither'] not in response.text
 
-def test_edit(client:FlaskClient) -> None:
+def test_edit_user(client:FlaskClient) -> None:
     '''Tests the endpoint `/users/edit`.'''
 
     # Future-proofing

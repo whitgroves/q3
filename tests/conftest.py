@@ -19,19 +19,20 @@ USER_DATA = [{'email':f'user{i}@test.net',
 # There are some specific scenarios being checked on user pages, so we make
 # a batch of similar tasks, then modify a couple of them for those tests
 TASK_DATA = [{'summary':f'Setup {i} laptops',
+              'detail':'Install Windows 10 Pro and link it to Azure AD.',
               'reward_amount':50.0*i,
               'reward_currency':'USD',
               'due_by':datetime.now()+timedelta(days=i),
-              'created_by':1} # user0 (only tasks completed)
+              'requested_by':1}  # user0 (only tasks completed)
               for i in range(2, 13)] 
 
-TASK_DATA[0]['accepted_by'] = 3 # user2 (task completed + approved)
+TASK_DATA[0]['accepted_by'] = 3  # user2 (task completed + approved)
 TASK_DATA[0]['accepted_at'] = datetime.now()-timedelta(hours=18)
 TASK_DATA[0]['completed_at'] = datetime.now()-timedelta(hours=12)
 TASK_DATA[0]['approved_at'] = datetime.now()-timedelta(hours=6)
 
-TASK_DATA[1]['created_by'] = 3
-TASK_DATA[1]['accepted_by'] = 2 # user1 (only task approved)
+TASK_DATA[1]['requested_by'] = 3 # user2 (task completed + approved)
+TASK_DATA[1]['accepted_by'] = 2  # user1 (only task approved)
 TASK_DATA[1]['accepted_at'] = datetime.now()-timedelta(hours=18)
 TASK_DATA[1]['completed_at'] = datetime.now()-timedelta(hours=12)
 TASK_DATA[1]['approved_at'] = datetime.now()-timedelta(hours=6)
@@ -42,7 +43,7 @@ USER_DATA[3]['bio'] = 'Most definitely not an extraterrestrial'
 
 # Comments are simple, they just belong to the task creator
 COMMENT_DATA = [{'task_id':i+1, 
-                 'created_by':task['created_by'],
+                 'created_by':task['requested_by'],
                  'text':f'test {i}{i+1}{i+2}'} 
                  for i, task in enumerate(TASK_DATA)]
 

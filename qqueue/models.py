@@ -15,19 +15,19 @@ class User(UserMixin, database.Model): # pylint: disable=too-few-public-methods
     created_at = Column(DateTime(timezone=True), server_default=func.now()) # pylint: disable=not-callable
     headline = Column(String(256))
     bio = Column(Text)
-    requests = database.relationship('Task', primaryjoin='User.id == Task.created_by', backref='requester', cascade=CASCADE)
+    requests = database.relationship('Task', primaryjoin='User.id == Task.requested_by', backref='requester', cascade=CASCADE)
     orders = database.relationship('Task', primaryjoin='User.id == Task.accepted_by', backref='provider', cascade=CASCADE)
 
 
 class Task(database.Model): # pylint: disable=too-few-public-methods
     id = Column(Integer, primary_key=True)
     summary = Column(String(256), nullable=False)
-    description = Column(Text)
+    detail = Column(Text)
     reward_amount = Column(Float, nullable=False)
     reward_currency = Column(String(16), nullable=False)
     due_by = Column(DateTime(timezone=True), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now()) # pylint: disable=not-callable
-    created_by = Column(Integer, ForeignKey('user.id'), nullable=False)
+    requested_at = Column(DateTime(timezone=True), server_default=func.now()) # pylint: disable=not-callable
+    requested_by = Column(Integer, ForeignKey('user.id'), nullable=False)
     accepted_at = Column(DateTime(timezone=True))
     accepted_by = Column(Integer, ForeignKey('user.id'))
     completed_at = Column(DateTime(timezone=True))

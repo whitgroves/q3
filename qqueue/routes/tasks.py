@@ -1,8 +1,6 @@
 '''
 Task routes for qqueue. Includes:
-    /tasks - All tasks that have been created but not accepted
-    /tasks/requested/<user_id> - All tasks created by user_id, either open or associated with current_user
-    /tasks/accepted/<user_id> - All tasks accepted by user_id that are associated with current_user
+    /tasks - All tasks that have yet to be accepted in the system
 '''
 
 from flask import Blueprint, Response, request, render_template, flash, redirect, url_for, abort
@@ -19,6 +17,30 @@ def index() -> Response:
     data = dict()
     data['tasks'] = Task.query.filter_by(Task.accepted_at is None)
     return render_template('tasks/index.html', **data)
+
+def get_task(task_id:int) -> Response:
+    pass
+
+def new_task(task_id:int) -> Response:
+    pass
+
+def edit_task(task_id:int) -> Response:
+    pass
+
+def delete_task(task_id:int) -> Response:
+    pass
+
+def accept_task(task_id:int) -> Response:
+    pass
+
+def complete_task(task_id:int) -> Response:
+    pass
+
+def approve_task(task_id:int) -> Response:
+    pass
+
+def reject_task(task_id:int) -> Response:
+    pass
 
 @blueprint.route('/requested/<int:user_id>')
 def requested_by(user_id:int) -> Response:
