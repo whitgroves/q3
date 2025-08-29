@@ -24,7 +24,7 @@ TASK_DATA = [{'summary':f'Setup {i} laptops',
               'reward_currency':f'USD{i}',
               'due_by':datetime.now()+timedelta(days=i), # nearest dates first
               'requested_by':1}  # user0 (only tasks completed)
-              for i in range(2, 13)] 
+              for i in range(2, 13)]
 
 TASK_DATA[0]['accepted_by'] = 3  # user2 (task completed + approved)
 TASK_DATA[0]['accepted_at'] = datetime.now()-timedelta(hours=18)
@@ -42,7 +42,7 @@ USER_DATA[3]['headline'] = '3rd rock'
 USER_DATA[3]['bio'] = 'Most definitely not an extraterrestrial'
 
 # Comments are simple, they just belong to the task creator
-COMMENT_DATA = [{'task_id':i+1, 
+COMMENT_DATA = [{'task_id':i+1,
                  'created_by':task['requested_by'],
                  'text':f'test {i}{i+1}{i+2}'} 
                  for i, task in enumerate(TASK_DATA)]

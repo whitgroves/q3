@@ -3,13 +3,11 @@
 from random import choice, randint
 from flask import g # globals - needed for CSRF token
 from flask.testing import FlaskClient
-from tests.conftest import USER_DATA, TASK_DATA, authenticate_user
-from qqueue.models import Task
-from qqueue.extensions import database
+from tests.conftest import USER_DATA, TASK_DATA, Task, authenticate_user
 
-def test_index(client:FlaskClient) -> None:
+def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statements
     '''Tests the endpoint /tasks'''
-    
+
     # Future-proofing
     endpoint = '/tasks/'
     logged_in_with_tasks_text = [
@@ -31,7 +29,7 @@ def test_index(client:FlaskClient) -> None:
         '>Login</a> or <a href=',
         '>register</a> to view, create, and complete tasks.</p>',
     ]
-    
+
     # When logged out, summaries of 5 unclaimed tasks with the nearest due
     # dates are visible, but nothing else
     response = client.get(endpoint)
@@ -48,7 +46,7 @@ def test_index(client:FlaskClient) -> None:
         assert str(task['reward_amount']) not in response.text
         assert task['reward_currency'] not in response.text
         assert str(task['due_by']) not in response.text
-        assert USER_DATA[task['requested_by']-1]['username'] not in response.text
+        assert USER_DATA[task['requested_by']-1]['username'] not in response.text # pylint: disable=line-too-long
     assert tasks_seen == 5
     assert all(text not in response.text for text in logged_in_with_tasks_text)
     assert all(text in response.text for text in logged_out_with_tasks_text)
@@ -82,10 +80,9 @@ def test_index(client:FlaskClient) -> None:
     assert all(text not in response.text for text in logged_in_no_tasks_text)
     assert all(text not in response.text for text in logged_out_no_tasks_text)
 
-    # Now drop all *unaccepted* tasks to test the page when there should be
-    # no tasks to display
-    Task.query.filter(Task.accepted_at == None).delete(synchronize_session=False)
-    # database.session.commit()
+    # Now delete *unaccepted* tasks to test scenario where
+    # no tasks should be displayed
+    Task.query.filter(Task.accepted_at == None).delete(synchronize_session=False) # pylint: disable=line-too-long, singleton-comparison
 
     # The user is still logged in, so test that scenario first
     response = client.get(endpoint)

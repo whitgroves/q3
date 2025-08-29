@@ -34,14 +34,14 @@ def test_index(client:FlaskClient) -> None:
     assert all(user['password'] not in response.text for user in USER_DATA)
     assert 'None' not in response.text
 
-def test_get_user(client:FlaskClient) -> None:
+def test_get_user(client:FlaskClient) -> None: # pylint: disable=too-many-statements
     '''Tests the endpoint `/users/<user_id>`.'''
 
     # Future-proofing
     recruit_text = {
         'requests': 'This user is already making requests on qqueue.',
         'orders': 'This user is already fulfilling orders on qqueue.',
-        'both': 'This user is already making requests and fulfilling orders on qqueue.',
+        'both': 'This user is already making requests and fulfilling orders on qqueue.', # pylint: disable=line-too-long
         'neither': 'This user is already registered for qqueue.',
     }
     task_link_text = ['Open Requests', 'Completed Orders']
@@ -77,7 +77,7 @@ def test_get_user(client:FlaskClient) -> None:
     assert all(user['username'] not in response.text
                for i, user in enumerate(USER_DATA) if i != 3)
     assert 'None' not in response.text
-    
+
     # When logged in as that user, can see the same info + option to edit
     authenticate_user(credentials=USER_DATA[3], client=client)
     response = client.get(endpoint(4))
@@ -160,7 +160,7 @@ def test_edit_user(client:FlaskClient) -> None:
     # And none of the old profile data, nor anyone else's is present
     assert all(user['username'] not in response.text for user in USER_DATA)
 
-    # Update non-password fields back to old values 1 at a time to test single edits
+    # Update fields back to old values 1 at a time to test single edits
     credentials['headline'] = 'goddammit'
     credentials['bio'] = 'ooh you said #11'
     for field in ['username', 'headline', 'bio']:

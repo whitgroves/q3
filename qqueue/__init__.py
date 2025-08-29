@@ -42,7 +42,7 @@ def create_app(config:BaseConfig=DevConfig) -> Flask:
         os.makedirs(DATABASE_DIR, exist_ok=True)
     with app.app_context():
         rebuild_database = app.testing # Always rebuild on test
-        if not rebuild_database:    
+        if not rebuild_database:
             inspector = inspect(database.engine)
             # Don't forget to add new tables !!!
             for table in [User, Task]:
@@ -54,12 +54,13 @@ def create_app(config:BaseConfig=DevConfig) -> Flask:
                     for column in inspector.get_columns(table.__tablename__):
                         if not hasattr(table, column['name']):
                             rebuild_database = True
-                            break        
+                            break
                 # If any snags are hit, stop immediately
                 else: break
         # if (vs else) in case flag flipped during integrity check
         if rebuild_database:
-            app.logger.log(level=(20 if app.testing else 40), msg='Rebuilding database...')
+            app.logger.log(level=(20 if app.testing else 40),
+                           msg='Rebuilding database...')
             database.drop_all()
             database.create_all()
     app.logger.info('Database ready.')

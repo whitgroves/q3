@@ -1,7 +1,7 @@
 '''Data models used by SQLAlchemy to build qqueue's database tables.'''
 
 from flask_login import UserMixin
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Float, func, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Text, Float, func, ForeignKey
 from qqueue.extensions import database
 
 CASCADE = 'all, delete-orphan' # shorthand for FK relationships
@@ -15,11 +15,18 @@ class User(UserMixin, database.Model): # pylint: disable=too-few-public-methods
     created_at = Column(DateTime(timezone=True), server_default=func.now()) # pylint: disable=not-callable
     headline = Column(String(256))
     bio = Column(Text)
-    requests = database.relationship('Task', primaryjoin='User.id == Task.requested_by', backref='requester', cascade=CASCADE)
-    orders = database.relationship('Task', primaryjoin='User.id == Task.accepted_by', backref='provider', cascade=CASCADE)
+    requests = database.relationship('Task',
+                                     primaryjoin='User.id == Task.requested_by',
+                                     backref='requester',
+                                     cascade=CASCADE)
+    orders = database.relationship('Task',
+                                   primaryjoin='User.id == Task.accepted_by',
+                                   backref='provider',
+                                   cascade=CASCADE)
 
 
 class Task(database.Model): # pylint: disable=too-few-public-methods
+    '''Defines the table fields for tasks.'''
     id = Column(Integer, primary_key=True)
     summary = Column(String(256), nullable=False)
     detail = Column(Text)
