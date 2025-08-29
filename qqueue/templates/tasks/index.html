@@ -1,2 +1,21 @@
-
+{% from 'macros.html' import display_task %}
 {% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} ✅ {% endblock %} Tasks</h1>
+    <hr>
+    {% if current_user.is_authenticated %}
+        {% for task in tasks %}
+            {{ display_task(task) }}    
+        {% endfor %}
+    {% else %}
+        {% for summary in summaries %}
+            <div class="card" style="margin: 8px 0px">
+                <div class="card-body">
+                    <p>{{ summary }}</p>
+                </div>
+            </div>
+        {% endfor %}
+        <p><a href="{{ url_for('auth.login') }}">Login</a> or <a href="{{ url_for('auth.register') }}">register</a> to complete tasks.</p>
+    {% endif %}
+{% endblock %}

@@ -15,7 +15,11 @@ blueprint = Blueprint('tasks', __name__)
 @blueprint.route('/')
 def index() -> Response:
     data = dict()
-    data['tasks'] = Task.query.filter_by(Task.accepted_at is None)
+    tasks = Task.query.filter(Task.accepted_at == None).order_by(Task.due_by).all()
+    if current_user.is_authenticated:
+        data['tasks'] = tasks
+    else:
+        data['summaries'] = [task.summary for task in tasks[:5]]
     return render_template('tasks/index.html', **data)
 
 def get_task(task_id:int) -> Response:

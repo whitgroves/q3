@@ -19,10 +19,10 @@ USER_DATA = [{'email':f'user{i}@test.net',
 # There are some specific scenarios being checked on user pages, so we make
 # a batch of similar tasks, then modify a couple of them for those tests
 TASK_DATA = [{'summary':f'Setup {i} laptops',
-              'detail':'Install Windows 10 Pro and link it to Azure AD.',
+              'detail':f'Install Windows {10+i} and link it to Azure AD.',
               'reward_amount':50.0*i,
-              'reward_currency':'USD',
-              'due_by':datetime.now()+timedelta(days=i),
+              'reward_currency':f'USD{i}',
+              'due_by':datetime.now()+timedelta(days=i), # nearest dates first
               'requested_by':1}  # user0 (only tasks completed)
               for i in range(2, 13)] 
 
