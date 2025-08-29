@@ -26,13 +26,13 @@ class LoginForm(FlaskForm):
 
 # user
 class UserForm(FlaskForm):
-    email = EmailField('Email', validators=[Length(max=64)])
+    # email = EmailField('Email', validators=[Length(max=64)])
     username = StringField('Username', validators=[Length(max=32)])
-    password = PasswordField('Password', validators=[Length(max=128)])
-    confirm_password = PasswordField('Confirm Password', validators=[Length(max=128)])
+    # password = PasswordField('Password', validators=[Length(max=128)])
+    # confirm_password = PasswordField('Confirm Password', validators=[Length(max=128)])
     headline = StringField('Headline', validators=[Length(max=256)])
     bio = TextAreaField('Bio')
-    current_password = PasswordField('Current Password', validators=input_required(128))
+    # current_password = PasswordField('Current Password', validators=input_required(128))
 
 
 # task

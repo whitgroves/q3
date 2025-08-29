@@ -5,17 +5,29 @@
     <h1>{% block title %} ✅ {% endblock %} Tasks</h1>
     <hr>
     {% if current_user.is_authenticated %}
-        {% for task in tasks %}
-            {{ display_task(task) }}    
-        {% endfor %}
+        {% if tasks|length > 0 %}
+            <p>Here are today's open requests:</p>
+            {% for task in tasks %}
+                {{ display_task(task) }}    
+            {% endfor %}
+            <p>Need your own task done? <a href="{{ url_for('tasks.new_task') }}">Click here</a> to create a request.</p>
+        {% else %}
+            <p>There are no open requests at this time.</p>
+            <p><a href="{{ url_for('tasks.new_task') }}">Create one</a> or see <a href="{{ url_for('users.index') }}">who else</a> is on qqueue.</p>
+        {% endif %}
     {% else %}
-        {% for summary in summaries %}
-            <div class="card" style="margin: 8px 0px">
-                <div class="card-body">
-                    <p>{{ summary }}</p>
+        {% if summaries|length > 0 %}
+            <p><a href="{{ url_for('auth.register') }}">Register now</a> to view, create, and complete tasks like:</p>
+            {% for summary in summaries %}
+                <div class="card" style="margin: 8px 0px">
+                    <div class="card-body">
+                        <p>{{ summary }}</p>
+                    </div>
                 </div>
-            </div>
-        {% endfor %}
-        <p><a href="{{ url_for('auth.login') }}">Login</a> or <a href="{{ url_for('auth.register') }}">register</a> to complete tasks.</p>
+            {% endfor %}
+            <p>Already registered? <a href="{{ url_for('auth.login') }}">Click here</a> to login.</p>
+        {% else %}
+        <p><a href="{{ url_for('auth.login') }}">Login</a> or <a href="{{ url_for('auth.register') }}">register</a> to view, create, and complete tasks.</p>
+        {% endif %}
     {% endif %}
 {% endblock %}

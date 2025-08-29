@@ -22,10 +22,12 @@ def index() -> Response:
         data['summaries'] = [task.summary for task in tasks[:5]]
     return render_template('tasks/index.html', **data)
 
-def get_task(task_id:int) -> Response:
+@blueprint.route('/tasks/new')
+@login_required
+def new_task() -> Response:
     pass
 
-def new_task(task_id:int) -> Response:
+def get_task(task_id:int) -> Response:
     pass
 
 def edit_task(task_id:int) -> Response:

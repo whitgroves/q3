@@ -6,17 +6,8 @@
     <form method="post">
         {{ form.csrf_token }}
 
-        <h5>{{ form.email.label(class='form-label') }}</h5>
-        <p>{{ form.email(class='form-control', size=64, value=user.email) }}</p>
-
         <h5>{{ form.username.label(class='form-label') }}</h5>
         <p>{{ form.username(class='form-control', size=32, value=user.username) }}</p>
-
-        <h5>{{ form.password.label(class='form-label') }}</h5>
-        <p>{{ form.password(class='form-control', size=128) }}</p>
-
-        <h5>{{ form.confirm_password.label(class='form-label') }}</h5>
-        <p>{{ form.confirm_password(class='form-control', size=128) }}</p>
 
         <h5>{{ form.headline.label(class='form-label') }}</h5>
         <p>{{ form.headline(class='form-control', size=256, value=user.headline) }}</p>
@@ -24,9 +15,6 @@
         <h5>{{ form.bio.label(class='form-label') }}</h5>
         <p><textarea class='form-control' id='bio' name='bio'>{{ user.bio }}</textarea></p>
         {# ^ https://stackoverflow.com/a/53126855/3178898 #}
-
-        <h5>{{ form.current_password.label(class='form-label') }}</h5>
-        <p>{{ form.current_password(class='form-control', size=128) }}</p>
 
         <p><button type="submit" class="btn btn-primary">Update Info</button></p>
     </form>

@@ -4,14 +4,37 @@ from random import choice, randint
 from flask import g # globals - needed for CSRF token
 from flask.testing import FlaskClient
 from tests.conftest import USER_DATA, TASK_DATA, authenticate_user
+from qqueue.models import Task
+from qqueue.extensions import database
 
 def test_index(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks'''
-    endpoint = '/tasks'
+    
+    # Future-proofing
+    endpoint = '/tasks/'
+    logged_in_with_tasks_text = [
+        "<p>Here are today's open requests:</p>",
+        '<p>Need your own task done? <a href=',
+        '>Click here</a> to create a request.</p>',
+    ]
+    logged_out_with_tasks_text = [
+        '>Register now</a> to view, create, and complete tasks like:</p>',
+        '<p>Already registered? <a href=',
+        '>Click here</a> to login.</p>',
+    ]
+    logged_in_no_tasks_text = [
+        '<p>There are no open requests at this time.</p>',
+        '>Create one</a> or see <a href=',
+        '>who else</a> is on qqueue.</p>',
+    ]
+    logged_out_no_tasks_text = [
+        '>Login</a> or <a href=',
+        '>register</a> to view, create, and complete tasks.</p>',
+    ]
     
     # When logged out, summaries of 5 unclaimed tasks with the nearest due
     # dates are visible, but nothing else
-    response = client.get(endpoint, follow_redirects=True)
+    response = client.get(endpoint)
     assert response.status_code == 200
     tasks_seen = 0
     for i, task in enumerate(TASK_DATA):
@@ -27,11 +50,15 @@ def test_index(client:FlaskClient) -> None:
         assert str(task['due_by']) not in response.text
         assert USER_DATA[task['requested_by']-1]['username'] not in response.text
     assert tasks_seen == 5
+    assert all(text not in response.text for text in logged_in_with_tasks_text)
+    assert all(text in response.text for text in logged_out_with_tasks_text)
+    assert all(text not in response.text for text in logged_in_no_tasks_text)
+    assert all(text not in response.text for text in logged_out_no_tasks_text)
 
     # But when logged in, summaries, details, requester, due date, and rewards
     # should be visible for all unclaimed tasks in the system
     authenticate_user(credentials=choice(USER_DATA), client=client)
-    response = client.get(endpoint, follow_redirects=True)
+    response = client.get(endpoint)
     assert response.status_code == 200
     for task in TASK_DATA:
         if 'accepted_by' in task:
@@ -40,9 +67,9 @@ def test_index(client:FlaskClient) -> None:
             assert str(task['reward_amount']) not in response.text
             assert task['reward_currency'] not in response.text
             assert str(task['due_by']) not in response.text
-            # assert USER_DATA[task['accepted_by']-1]['username'] not in response.text
             assert str(task['accepted_at']) not in response.text
-            # assert USER_DATA[task['requested_by']-1]['username'] not in response.text
+            # cannot check for absence of user links since there are 2 of them
+            # and either could have a value the other isn't supposed to
         else:
             assert task['summary'] in response.text
             assert task['detail'] in response.text
@@ -50,13 +77,51 @@ def test_index(client:FlaskClient) -> None:
             assert task['reward_currency'] in response.text
             assert str(task['due_by']) in response.text
             assert f'/users/{task["requested_by"]}' in response.text
+    assert all(text in response.text for text in logged_in_with_tasks_text)
+    assert all(text not in response.text for text in logged_out_with_tasks_text)
+    assert all(text not in response.text for text in logged_in_no_tasks_text)
+    assert all(text not in response.text for text in logged_out_no_tasks_text)
 
-def test_get_task(client:FlaskClient) -> None:
-    '''Tests the endpoint /tasks/<task_id>'''
-    pass
+    # Now drop all *unaccepted* tasks to test the page when there should be
+    # no tasks to display
+    Task.query.filter(Task.accepted_at == None).delete(synchronize_session=False)
+    # database.session.commit()
+
+    # The user is still logged in, so test that scenario first
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    for task in TASK_DATA:
+        assert task['summary'] not in response.text
+        assert task['detail'] not in response.text
+        assert str(task['reward_amount']) not in response.text
+        assert task['reward_currency'] not in response.text
+        assert str(task['due_by']) not in response.text
+    assert all(text not in response.text for text in logged_in_with_tasks_text)
+    assert all(text not in response.text for text in logged_out_with_tasks_text)
+    assert all(text in response.text for text in logged_in_no_tasks_text)
+    assert all(text not in response.text for text in logged_out_no_tasks_text)
+
+    # Then logout and repeat the check, but for a different message
+    client.get('/logout')
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    for task in TASK_DATA:
+        assert task['summary'] not in response.text
+        assert task['detail'] not in response.text
+        assert str(task['reward_amount']) not in response.text
+        assert task['reward_currency'] not in response.text
+        assert str(task['due_by']) not in response.text
+    assert all(text not in response.text for text in logged_in_with_tasks_text)
+    assert all(text not in response.text for text in logged_out_with_tasks_text)
+    assert all(text not in response.text for text in logged_in_no_tasks_text)
+    assert all(text in response.text for text in logged_out_no_tasks_text)
 
 def test_new_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/new'''
+    pass
+
+def test_get_task(client:FlaskClient) -> None:
+    '''Tests the endpoint /tasks/<task_id>'''
     pass
 
 def test_edit_task(client:FlaskClient) -> None:
