@@ -44,8 +44,7 @@ def create_app(config:BaseConfig=DevConfig) -> Flask:
         rebuild_database = app.testing # Always rebuild on test
         if not rebuild_database:
             inspector = inspect(database.engine)
-            # Don't forget to add new tables !!!
-            for table in [User, Task]:
+            for table in [User, Task]: # !!! Don't forget to add new tables !!!
                 # Check that each table exists
                 if not inspector.has_table(table.__tablename__):
                     rebuild_database = True
