@@ -22,17 +22,29 @@
 {% macro display_task(task) %}
     <div class="card" style="margin: 8px 0px">
         <div class="card-header">
-            <h5 class="card-title">
-                <a href="{{ url_for('users.get_user', user_id=task.requested_by) }}">{{ task.requester }}</a>
-            </h5>
-            <p>{{ task.summary }}</p>
+            
+            <div class="row">
+                <div class="col text-start">
+                    <h5><a href="{{ url_for('tasks.get_task', task_id=task.id) }}">{{ task.summary }}</a></h5>
+                </div>
+                <div class="col text-end">
+                    Requested By: <a href="{{ url_for('users.get_user', user_id=task.requested_by) }}"> {{ task.requester }}</a>
+                </div>
+                   
+            </div>
         </div>
         <div class="card-body">
             <p>{{ task.detail }}</p>
         </div>
         <div class="card-footer">
-            <p class="card-text"><b>Due By:</b> {{ task.due_by }} </p>
-            <p class="card-text"><b>Reward:</b> {{ task.reward_amount }} {{ task.reward_currency }}</p>
+            <div class="row">
+                <div class="col text-start">
+                     <b>Due By:</b> {{ task.due_by }}
+                </div>
+                <div class="col text-end">
+                    Reward: <b>{{ task.reward_amount }} {{ task.reward_currency }}</b>
+                </div>
+            </div>
         </div>
     </div>
 {% endmacro %}

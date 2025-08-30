@@ -1,0 +1,8 @@
+{% from 'macros.html' import display_task %}
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} ✅ {% endblock %} {{ task.summary }}</h1>
+    <hr>
+    {{ display_task(task) }}
+{% endblock %}

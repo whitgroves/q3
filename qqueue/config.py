@@ -35,3 +35,25 @@ class ProdConfig(BaseConfig): # pylint: disable=too-few-public-methods
     SECRET_KEY = os.environ.get('QQ_SECRET_KEY')
     SQLALCHEMY_DATABASE_URI = os.environ.get('QQ_DATABASE_URI') or \
         SQLITE_PREFIX + os.path.join(DATABASE_DIR, 'qqueue.db')
+
+
+ACCEPTED_CURRENCIES = [
+    'USD',
+    'EUR',
+    'CAD',
+    'USDT',
+    'BTC',
+    'ETH',
+    'DAI',
+    'USDC',
+    'SOL',
+    'XRP',
+    'FDUSD',
+    'BNB',
+    'DOGE',
+    'LINK',
+    'ADA',
+    'TRX',
+    'CRO',
+    'AVAX',
+]

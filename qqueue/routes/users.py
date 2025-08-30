@@ -10,7 +10,7 @@ from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from qqueue.forms import UserForm
 from qqueue.models import User
-from qqueue.extensions import database
+from qqueue.extensions import database, endpoint_exception
 
 blueprint = Blueprint('users', __name__)
 
@@ -90,4 +90,4 @@ def edit_user() -> Response:
                 return redirect(url_for('users.get_user', user_id=user.id))
             return render_template('users/edit.html', user=user, form=form), 400 # pylint: disable=line-too-long
         case _:
-            abort(405)
+            endpoint_exception()

@@ -3,7 +3,7 @@
 from random import choice, randint
 from flask import g # globals - needed for CSRF token
 from flask.testing import FlaskClient
-from tests.conftest import USER_DATA, TASK_DATA, Task, authenticate_user
+from tests.conftest import USER_DATA, TASK_DATA, Task, date, timedelta, authenticate_user
 
 def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statements
     '''Tests the endpoint /tasks'''
@@ -115,7 +115,50 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
 
 def test_new_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/new'''
-    pass
+
+    # Future-proofing
+    endpoint = '/tasks/new'
+    new_task = {'summary':'create a new task',
+                'detail':'lorem ipsum si dolor amet',
+                'reward_amount': 420.0,
+                'reward_currency': 'USD',
+                'due_by':date.today()+timedelta(7)}
+
+    # While logged out, both GET and POST requests redirect to login
+    redirect = '/login'
+    for response in [client.get(endpoint), client.post(endpoint)]:
+        assert response.status_code == 302
+        assert response.location[:len(redirect)] == redirect
+
+    # User can view the form while logged in
+    authenticate_user(credentials=choice(USER_DATA), client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(label.replace('_', ' ') in response.text.lower() for label in new_task.keys())
+
+    # User can create a task while logged in, with a redirect to the new task
+    redirect = f'/tasks/{len(TASK_DATA)+1}'
+    response = client.post(endpoint, data={'csrf_token':g.csrf_token, **new_task}, follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == redirect
+    assert all(str(text) in response.text for text in new_task.values())
+
+    # Now try again without the CSRF token; request should fail (400)
+    redirect = f'/tasks/{len(TASK_DATA)+2}'
+    response = client.post(endpoint, data=new_task)
+    assert response.status_code == 400
+    
+    # Request should also fail if any of the required fields are missing and
+    # redirect back to the new task form. `new_task` includes only these, so
+    # we loop through the keys and try to send copies missing each one
+    for field in new_task.keys():
+        invalid_task = new_task.copy()
+        del invalid_task[field]
+        response = client.post(endpoint,
+                               data={'csrf_token':g.csrf_token, **invalid_task}, # pylint disable=line-too-long
+                               follow_redirects=True)
+        assert response.status_code == 400
+        assert response.request.path == endpoint
 
 def test_get_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>'''
@@ -131,6 +174,10 @@ def test_delete_task(client:FlaskClient) -> None:
 
 def test_accept_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/accept'''
+    pass
+
+def test_decline_task(client:FlaskClient) -> None:
+    '''Tests the endpoint /tasks/<task_id>/decline'''
     pass
 
 def test_complete_task(client:FlaskClient) -> None:

@@ -2,7 +2,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <h1>{% block title %} ✅ {% endblock %} Tasks</h1>
+    <h1>{% block title %} 📋 {% endblock %} Tasks</h1>
     <hr>
     {% if current_user.is_authenticated %}
         {% if tasks|length > 0 %}

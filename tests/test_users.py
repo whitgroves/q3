@@ -172,14 +172,15 @@ def test_edit_user(client:FlaskClient) -> None:
                                follow_redirects=True)
         assert response.status_code == 200
 
-    # If logged out, both GET and POST should redirect to the home index
+    # If logged out, both GET and POST should redirect to login
+    redirect = '/login'
     client.get('/logout')
-    response = client.get(endpoint, follow_redirects=True)
-    assert response.status_code == 200
-    assert response.request.path == '/login'
-    response = client.post(endpoint, data=new_data, follow_redirects=True)
-    assert response.status_code == 200
-    assert response.request.path == '/login'
+    response = client.get(endpoint)
+    assert response.status_code == 302
+    assert response.location[:len(redirect)] == redirect
+    response = client.post(endpoint, data=new_data)
+    assert response.status_code == 302
+    assert response.location[:len(redirect)] == redirect
 
     # # Should be able to re-authenticate with new password
     # credentials['password'] = new_data['password']

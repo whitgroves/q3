@@ -1,6 +1,6 @@
 '''Fixtures for automated testing of qqueue.'''
 
-from datetime import datetime, timedelta
+from datetime import date, timedelta
 from pytest import fixture
 from flask import Flask, Response, g
 from flask.testing import FlaskClient
@@ -22,20 +22,20 @@ TASK_DATA = [{'summary':f'Setup {i} laptops',
               'detail':f'Install Windows {10+i} and link it to Azure AD.',
               'reward_amount':50.0*i,
               'reward_currency':f'USD{i}',
-              'due_by':datetime.now()+timedelta(days=i), # nearest dates first
+              'due_by':date.today()+timedelta(days=i), # nearest dates first
               'requested_by':1}  # user0 (only tasks completed)
               for i in range(2, 13)]
 
 TASK_DATA[0]['accepted_by'] = 3  # user2 (task completed + approved)
-TASK_DATA[0]['accepted_at'] = datetime.now()-timedelta(hours=18)
-TASK_DATA[0]['completed_at'] = datetime.now()-timedelta(hours=12)
-TASK_DATA[0]['approved_at'] = datetime.now()-timedelta(hours=6)
+TASK_DATA[0]['accepted_at'] = date.today()-timedelta(hours=18)
+TASK_DATA[0]['completed_at'] = date.today()-timedelta(hours=12)
+TASK_DATA[0]['approved_at'] = date.today()-timedelta(hours=6)
 
 TASK_DATA[1]['requested_by'] = 3 # user2 (task completed + approved)
 TASK_DATA[1]['accepted_by'] = 2  # user1 (only task approved)
-TASK_DATA[1]['accepted_at'] = datetime.now()-timedelta(hours=18)
-TASK_DATA[1]['completed_at'] = datetime.now()-timedelta(hours=12)
-TASK_DATA[1]['approved_at'] = datetime.now()-timedelta(hours=6)
+TASK_DATA[1]['accepted_at'] = date.today()-timedelta(hours=18)
+TASK_DATA[1]['completed_at'] = date.today()-timedelta(hours=12)
+TASK_DATA[1]['approved_at'] = date.today()-timedelta(hours=6)
 
 # user3 (id:4) needs neither, but they do need a tagline and bio
 USER_DATA[3]['headline'] = '3rd rock'
