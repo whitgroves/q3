@@ -23,7 +23,7 @@ class User(UserMixin, database.Model): # pylint: disable=too-few-public-methods
                                    primaryjoin='User.id == Task.accepted_by',
                                    backref='provider',
                                    cascade=CASCADE)
-    
+
     def __str__(self):
         return self.username
 

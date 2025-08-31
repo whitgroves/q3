@@ -13,5 +13,5 @@ def endpoint_exception() -> None:
     Handler for unexpected HTTP requests abstracted out to make coding easier.
     Logs the request and aborts it with HTTP code 405 (Method Not Allowed)
     '''
-    current_app.logger.warning(f'405: {request.path} {request.method}: {request}')
+    current_app.logger.warning(f'405: {request.path} {request.method}: {request}') # pylint: disable=line-too-long
     abort(405)

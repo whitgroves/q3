@@ -4,6 +4,7 @@ from random import choice, randint
 from flask import g # globals - needed for CSRF token
 from flask.testing import FlaskClient
 from tests.conftest import USER_DATA, TASK_DATA, Task, date, timedelta, authenticate_user
+from qqueue.config import ACCEPTED_CURRENCIES
 
 def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statements
     '''Tests the endpoint /tasks'''
@@ -134,11 +135,14 @@ def test_new_task(client:FlaskClient) -> None:
     authenticate_user(credentials=choice(USER_DATA), client=client)
     response = client.get(endpoint)
     assert response.status_code == 200
-    assert all(label.replace('_', ' ') in response.text.lower() for label in new_task.keys())
+    assert all(field.replace('_', ' ') in response.text.lower()
+               for field in new_task)
 
     # User can create a task while logged in, with a redirect to the new task
     redirect = f'/tasks/{len(TASK_DATA)+1}'
-    response = client.post(endpoint, data={'csrf_token':g.csrf_token, **new_task}, follow_redirects=True)
+    response = client.post(endpoint,
+                           data={'csrf_token':g.csrf_token, **new_task},
+                           follow_redirects=True)
     assert response.status_code == 200
     assert response.request.path == redirect
     assert all(str(text) in response.text for text in new_task.values())
@@ -147,18 +151,31 @@ def test_new_task(client:FlaskClient) -> None:
     redirect = f'/tasks/{len(TASK_DATA)+2}'
     response = client.post(endpoint, data=new_task)
     assert response.status_code == 400
-    
+
     # Request should also fail if any of the required fields are missing and
     # redirect back to the new task form. `new_task` includes only these, so
     # we loop through the keys and try to send copies missing each one
-    for field in new_task.keys():
+    for field in new_task:
         invalid_task = new_task.copy()
         del invalid_task[field]
         response = client.post(endpoint,
-                               data={'csrf_token':g.csrf_token, **invalid_task}, # pylint disable=line-too-long
+                               data={'csrf_token':g.csrf_token,
+                                     **invalid_task},
                                follow_redirects=True)
         assert response.status_code == 400
         assert response.request.path == endpoint
+
+    # The same behavior is true if a non-accepted currency is entered
+    invalid_currency = 'NOGOOD'
+    assert invalid_currency not in ACCEPTED_CURRENCIES # sanity check
+    invalid_task = new_task.copy()
+    invalid_task['reward_currency'] = invalid_currency
+    response = client.post(endpoint,
+                           data={'csrf_token':g.csrf_token,
+                                 **invalid_task},
+                           follow_redirects=True)
+    assert response.status_code == 400
+    assert response.request.path == endpoint
 
 def test_get_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>'''

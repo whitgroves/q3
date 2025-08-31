@@ -16,7 +16,8 @@ class RegisterForm(FlaskForm):
     email = EmailField('Email', validators=required_max_len(64))
     username = StringField('Username', validators=required_max_len(32))
     password = PasswordField('Password', validators=required_max_len(128))
-    confirm_password = PasswordField('Confirm Password', validators=required_max_len(128)) # pylint: disable=line-too-long
+    confirm_password = PasswordField('Confirm Password',
+                                     validators=required_max_len(128))
 
 
 # login
@@ -28,21 +29,28 @@ class LoginForm(FlaskForm):
 
 # user
 class UserForm(FlaskForm):
-    # email = EmailField('Email', validators=[Length(max=64)])
     username = StringField('Username', validators=[Length(max=32)])
-    # password = PasswordField('Password', validators=[Length(max=128)])
-    # confirm_password = PasswordField('Confirm Password', validators=[Length(max=128)])
     headline = StringField('Headline', validators=[Length(max=256)])
     bio = TextAreaField('Bio')
-    # current_password = PasswordField('Current Password', validators=input_required(128))
 
+
+# user credentials
+class CredentialsForm(FlaskForm):
+    email = EmailField('Email', validators=[Length(max=64)])
+    password = PasswordField('Password', validators=[Length(max=128)])
+    confirm_password = PasswordField('Confirm Password',
+                                     validators=[Length(max=128)])
+    current_password = PasswordField('Current Password',
+                                     validators=required_max_len(128))
 
 # task
 class TaskForm(FlaskForm):
     summary = StringField('Summary', validators=required_max_len(256))
     detail = TextAreaField('Detail', validators=[DataRequired()])
-    reward_amount = FloatField('Reward Amount', validators=[DataRequired(), NumberRange(min=0)])
-    reward_currency = StringField('Reward Currency', validators=[DataRequired(),
-                                                          Length(max=16),
-                                                          AnyOf(ACCEPTED_CURRENCIES)])
+    reward_amount = FloatField('Reward Amount',
+                               validators=[DataRequired(), NumberRange(min=0)])
+    reward_currency = StringField('Reward Currency',
+                                  validators=[DataRequired(),
+                                              Length(max=16),
+                                              AnyOf(ACCEPTED_CURRENCIES)])
     due_by = DateField('Due By', validators=[DataRequired()])
