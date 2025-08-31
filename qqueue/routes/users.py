@@ -8,7 +8,7 @@ User routes for qqueue. Includes:
 from flask import Blueprint, Response, request, render_template, flash, redirect, url_for, abort
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from qqueue.forms import UserForm
+from qqueue.forms import UserForm, CredentialsForm
 from qqueue.models import User
 from qqueue.extensions import database, endpoint_exception
 
@@ -89,5 +89,44 @@ def edit_user() -> Response:
                 flash(f'User info for {username} updated successfully.')
                 return redirect(url_for('users.get_user', user_id=user.id))
             return render_template('users/edit.html', user=user, form=form), 400 # pylint: disable=line-too-long
+        case _:
+            endpoint_exception()
+
+@blueprint.route('/edit/credentials', methods=('GET', 'POST'))
+@login_required
+def edit_credentials() -> Response:
+    '''Allows `current_user` to edit their login credentials.'''
+    user = database.session.get(User, current_user.id)
+    if not user: redirect(url_for('main.index'), code=403)
+    form = CredentialsForm()
+    match request.method:
+        case 'GET':
+            return render_template('users/credentials.html',
+                                   user=display_format(user),
+                                   form=form)
+        case 'POST':
+            email = (form.email.data or user.email).strip()
+            password = (form.password.data or '').strip()
+            confirm_password = (form.confirm_password.data or '').strip()
+            current_password = form.current_password.data.strip() # never None
+            errors = False
+            if not check_password_hash(user.password, current_password):
+                flash('Current password is incorrect.')
+                errors = True
+            elif password != confirm_password:
+                flash('New passwords do not match.')
+                errors = True
+            elif len(User.query.filter_by(email=email).all()) >\
+                int(user.email == email): # change = false = 0 = no matches
+                flash('Email already registered to another user.')
+                errors = True
+            if not errors and form.validate_on_submit():
+                user.email = email
+                if password: user.password = generate_password_hash(password)
+                database.session.add(user)
+                database.session.commit()
+                flash(f'Login credentials for {user.username} updated successfully.') # pylint: disable=line-too-long
+                return redirect(url_for('users.get_user', user_id=user.id))
+            return render_template('users/credentials.html', user=user, form=form), 400 # pylint: disable=line-too-long
         case _:
             endpoint_exception()

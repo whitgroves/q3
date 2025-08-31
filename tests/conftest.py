@@ -78,6 +78,8 @@ def client(application:Flask) -> FlaskClient: # fixtures, pylint: disable=redefi
     '''Returns an automated client for simulating user requests.'''
     return application.test_client()
 
+# Helpers
+
 def authenticate_user(credentials:dict, client:FlaskClient) -> Response: # pylint: disable=redefined-outer-name
     '''
     Generates a CSRF token then logs the user into the test client to allow
@@ -94,3 +96,12 @@ def authenticate_user(credentials:dict, client:FlaskClient) -> Response: # pylin
                   'email_or_username': credentials['email'],
                   'password': credentials['password']}
     return client.post('/login', data=login_data, follow_redirects=True)
+
+def assert_redirect(response:Response, redirect='/login') -> None:
+    '''
+    Asserts `response` was a redirect (302) to `redirect` (default `/login`).
+
+    Included as a helper function since this case has come up across tests.
+    '''
+    assert response.status_code == 302
+    assert response.location[:len(redirect)] == redirect

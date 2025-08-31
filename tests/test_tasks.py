@@ -3,7 +3,7 @@
 from random import choice, randint
 from flask import g # globals - needed for CSRF token
 from flask.testing import FlaskClient
-from tests.conftest import USER_DATA, TASK_DATA, Task, date, timedelta, authenticate_user
+from tests.conftest import USER_DATA, TASK_DATA, Task, date, timedelta, authenticate_user, assert_redirect
 from qqueue.config import ACCEPTED_CURRENCIES
 
 def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statements
@@ -126,10 +126,8 @@ def test_new_task(client:FlaskClient) -> None:
                 'due_by':date.today()+timedelta(7)}
 
     # While logged out, both GET and POST requests redirect to login
-    redirect = '/login'
-    for response in [client.get(endpoint), client.post(endpoint)]:
-        assert response.status_code == 302
-        assert response.location[:len(redirect)] == redirect
+    assert_redirect(client.get(endpoint))
+    assert_redirect(client.post(endpoint, data=new_task))
 
     # User can view the form while logged in
     authenticate_user(credentials=choice(USER_DATA), client=client)
@@ -179,7 +177,17 @@ def test_new_task(client:FlaskClient) -> None:
 
 def test_get_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>'''
-    pass
+
+    # Future-proofing
+    task_id = randint(1, len(TASK_DATA))
+    endpoint = f'/tasks/{task_id}'
+
+    # Accessing while logged out redirects to login
+    assert_redirect(client.get(endpoint))
+
+    # Logged in user can see all fields in the test data
+
+    # The task requester, and only them, can see the edit and delete buttons
 
 def test_edit_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/edit'''
