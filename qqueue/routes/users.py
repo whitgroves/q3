@@ -5,7 +5,7 @@ User routes for qqueue. Includes:
     /users/edit - Allows the current user to edit their own profile
 '''
 
-from flask import Blueprint, Response, request, render_template, flash, redirect, url_for, abort
+from flask import Blueprint, Response, request, render_template, flash, redirect, url_for
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from qqueue.forms import UserForm, CredentialsForm
@@ -56,39 +56,24 @@ def edit_user() -> Response:
                                    user=display_format(user), 
                                    form=form)
         case 'POST':
-            # email = form.email.data.strip() or user.email
             username = (form.username.data or user.username).strip()
-            # password = form.password.data.strip()
-            # confirm_password = form.confirm_password.data.strip()
             headline = (form.headline.data or user.headline).strip()
             bio = (form.bio.data or user.bio).strip()
-            # current_password = form.current_password.data.strip()
             errors = False
-            # if not check_password_hash(user.password, current_password):
-            #     flash('Current password is incorrect.')
-            #     errors = True
-            # elif password != confirm_password:
-            #     flash('Passwords do not match.')
-            #     errors = True
-            # elif len(User.query.filter_by(email=email).all()) >\
-            #     int(user.email == email): # change = false = 0 = no matches
-            #     flash('Email already registered to another user.')
-            #     errors = True
             if len(User.query.filter_by(username=username).all()) >\
                 int(user.username == username):
                 flash('Requested username is already taken.')
                 errors = True
             if not errors and form.validate_on_submit(): 
-                # user.email = email
                 user.username = username
-                # if password is not None: user.password = generate_password_hash(password=password)
                 user.headline = headline
                 user.bio = bio
                 database.session.add(user)
                 database.session.commit()
                 flash(f'User info for {username} updated successfully.')
                 return redirect(url_for('users.get_user', user_id=user.id))
-            return render_template('users/edit.html', user=user, form=form), 400 # pylint: disable=line-too-long
+            return render_template('users/edit.html',
+                                   user=user, form=form), 400
         case _:
             endpoint_exception()
 
@@ -117,7 +102,7 @@ def edit_credentials() -> Response:
                 flash('New passwords do not match.')
                 errors = True
             elif len(User.query.filter_by(email=email).all()) >\
-                int(user.email == email): # change = false = 0 = no matches
+                    int(user.email == email): # change = false = 0 = no matches
                 flash('Email already registered to another user.')
                 errors = True
             if not errors and form.validate_on_submit():
@@ -125,8 +110,10 @@ def edit_credentials() -> Response:
                 if password: user.password = generate_password_hash(password)
                 database.session.add(user)
                 database.session.commit()
-                flash(f'Login credentials for {user.username} updated successfully.') # pylint: disable=line-too-long
+                flash(f'Credentials for {user.username} updated successfully.')
                 return redirect(url_for('users.get_user', user_id=user.id))
-            return render_template('users/credentials.html', user=user, form=form), 400 # pylint: disable=line-too-long
+            return render_template('users/credentials.html',
+                                   user=display_format(user),
+                                   form=form), 400
         case _:
             endpoint_exception()

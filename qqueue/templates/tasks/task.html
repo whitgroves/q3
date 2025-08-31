@@ -5,4 +5,53 @@
     <h1>{% block title %} ✅ {% endblock %} {{ task.summary }}</h1>
     <hr>
     {{ display_task(task) }}
+    <hr>
+    <div class="row">
+        <div class="col-md-auto">
+            {% if not task.accepted_at %}
+                {% if current_user.id == task.requested_by %}
+                <div class="row">
+                    <div class="col-md-auto">
+                        <button class="btn btn-primary">Edit Request</button>
+                    </div>
+                    <div class="col-md-auto">
+                        <button class="btn btn-danger">Delete Task</button>
+                    </div>
+                </div>
+                {% else %}
+                    <form method="POST" action="{{ url_for('tasks.accept_task', task_id=task.id) }}">
+                        <button type="submit" class="btn btn-success">Accept Request</button></form>
+                {% endif %}
+            {% elif not task.completed_at %}
+                {% if current_user.id == task.accepted_by %}
+                    <div class="row">
+                        <div class="col-md-auto">
+                            <form method="POST" action="{{ url_for('tasks.complete_task', task_id=task.id) }}">
+                                <button class="btn btn-success">Complete Order</button></form>
+                        </div>
+                        <div class="col-md-auto">
+                            <form method="POST" action="{{ url_for('tasks.release_task', task_id=task.id) }}">
+                                <button class="btn btn-warning">Release Task</button></form>
+                        </div>
+                    </div>
+                {% endif %}
+            {% elif not task.approved_at %}
+                {% if current_user.id == task.requested_by %}
+                    <div class="row">
+                        <div class="col-md-auto">
+                            <form method="POST" action="{{ url_for('tasks.approve_task', task_id=task.id) }}">
+                                <button class="btn btn-primary">Approve Work</button></form>
+                        </div>
+                        <div class="col-md-auto">
+                            <form method="POST" action="{{ url_for('tasks.reject_task', task_id=task.id) }}">
+                                <button class="btn btn-danger">Reject Order</button></form>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        <div class="col text-end">
+            <button class="btn btn-primary">Leave a Comment</button>
+        </div>
+    </div>
 {% endblock %}

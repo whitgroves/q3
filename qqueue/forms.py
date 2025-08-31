@@ -1,6 +1,6 @@
 '''Secured forms for qqueue built on WTForms + Flask-WTF.'''
 
-from wtforms import EmailField, StringField, PasswordField, TextAreaField, FloatField, DateField
+from wtforms import EmailField, StringField, PasswordField, TextAreaField, FloatField, SelectField, DateField
 from wtforms.validators import DataRequired, Length, NumberRange, AnyOf
 from flask_wtf import FlaskForm
 from qqueue.config import ACCEPTED_CURRENCIES
@@ -49,8 +49,7 @@ class TaskForm(FlaskForm):
     detail = TextAreaField('Detail', validators=[DataRequired()])
     reward_amount = FloatField('Reward Amount',
                                validators=[DataRequired(), NumberRange(min=0)])
-    reward_currency = StringField('Reward Currency',
-                                  validators=[DataRequired(),
-                                              Length(max=16),
-                                              AnyOf(ACCEPTED_CURRENCIES)])
+    reward_currency = SelectField('Reward Currency',
+                                  choices=ACCEPTED_CURRENCIES,
+                                  validators=[DataRequired()])
     due_by = DateField('Due By', validators=[DataRequired()])

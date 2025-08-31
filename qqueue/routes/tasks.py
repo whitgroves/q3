@@ -2,7 +2,7 @@
 Task routes for qqueue. Includes:
     /tasks - All tasks that have yet to be accepted in the system
 '''
-from datetime import date
+from datetime import date, datetime
 from flask import Blueprint, Response, request, render_template, flash, redirect, url_for, abort, current_app
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -62,49 +62,121 @@ def new_task() -> Response:
 def get_task(task_id:int) -> Response:
     '''Fetches the task matching `task_id`, if it exists.'''
     task = Task.query.filter(Task.id == task_id).first_or_404()
+    if task.accepted_by and current_user.id not in [task.accepted_by, task.requested_by]: # pylint disable=line-too-long
+        return redirect(url_for('tasks.index'))
     return render_template('tasks/task.html', task=task)
 
-@blueprint.route('/<int:task_id>/edit')
+@blueprint.route('/<int:task_id>/edit', methods=('GET', 'POST'))
 @login_required
 def edit_task(task_id:int) -> Response:
     '''Updates the task matching `task_id`, if it exists.'''
-    pass
+    task = database.session.get(Task, task_id)
+    code = 302
+    should_redirect = False
+    if not task: 
+        should_redirect = True
+        code = 403
+    if current_user.id not in [task.requested_by, task.accepted_by]:
+        should_redirect = True
+    if should_redirect: redirect(url_for('tasks.index'), code=code)
+    form = TaskForm()
+    match request.method:
+        case 'GET':
+            return render_template('tasks/edit.html', task=task, form=form)
+        case 'POST':
+            summary = form.summary.data or task.summary
+            detail = form.detail.data or task.detail
+            reward_amount = form.reward_amount.data or task.reward_amount
+            reward_currency = form.reward_currency.data or task.reward_currency
+            due_by = form.due_by.data or task.due_by
+            errors = False
+            if not due_by or due_by < date.today():
+                flash('Due date cannot be in the past.')
+                errors=True
+            if not errors and form.validate_on_submit():
+                task = Task(summary=summary,
+                            detail=detail,
+                            reward_amount=reward_amount,
+                            reward_currency=reward_currency,
+                            due_by=due_by)
+                database.session.add(task)
+                database.session.commit()
+                message = f'Task "{summary}" updated successfully.'
+                current_app.logger.info(msg=message)
+                flash(message=message)
+                return redirect(url_for('tasks.get_task', task_id=task.id))
+            return render_template('tasks/edit.html', task=task, form=form), 400
+        case _:
+            endpoint_exception()
 
-@blueprint.route('/<int:task_id>/delete')
+@blueprint.post('/<int:task_id>/delete')
 @login_required
 def delete_task(task_id:int) -> Response:
     '''Deletes the task matching `task_id`, if it exists.'''
-    pass
+    task = database.session.get(Task, task_id)
+    if task.accepted_at or current_user.id != task.requested_by: abort(403)
+    summary = task.summary
+    database.session.delete(task)
+    database.session.commit()
+    flash(f'Task "{summary}" was permanently deleted.')
+    return redirect(url_for('tasks.index'))
 
-@blueprint.route('/<int:task_id>/accept')
+@blueprint.post('/<int:task_id>/accept')
 @login_required
 def accept_task(task_id:int) -> Response:
     '''Allows `current_user` to claim an unclaimed task.'''
-    pass
+    task = database.session.get(Task, task_id)
+    if current_user.id == task.requested_by: abort(403)
+    task.accepted_at = datetime.now()
+    task.accepted_by = current_user.id
+    database.session.commit()
+    flash(f'You\'ve accepted "{task.summary}", due date: {task.due_by}.')
+    return redirect(url_for('tasks.get_task', task_id=task.id))
 
-@blueprint.route('/<int:task_id>/decline')
+@blueprint.post('/<int:task_id>/release')
 @login_required
-def decline_task(task_id:int) -> Response:
+def release_task(task_id:int) -> Response:
     '''Allows `current_user` to release their claim on a task.'''
-    pass
+    task = database.session.get(Task, task_id)
+    if current_user.id != task.accepted_by: abort(403)
+    task.accepted_at = None
+    task.accepted_by = None
+    database.session.commit()
+    flash(f'Task "{task.summary}" released. Do not re-claim unless you can complete it.')
+    return redirect(url_for('tasks.get_task', task_id=task.id))
 
-@blueprint.route('/<int:task_id>/complete')
+@blueprint.post('/<int:task_id>/complete')
 @login_required
 def complete_task(task_id:int) -> Response:
     '''Allows the user matching `accepted_by` to mark a task complete.'''
-    pass
+    task = database.session.get(Task, task_id)
+    if current_user.id != task.accepted_by: abort(403)
+    task.completed_at = datetime.now()
+    database.session.commit()
+    flash(f'Task "{task.summary}" marked as complete. Waiting on requester approval.')
+    return redirect(url_for('tasks.get_task', task_id=task.id))
 
-@blueprint.route('/<int:task_id>/approve')
+@blueprint.post('/<int:task_id>/approve')
 @login_required
 def approve_task(task_id:int) -> Response:
     '''Allows the requester to confirm a task is complete.'''
-    pass
+    task = database.session.get(Task, task_id)
+    if current_user.id != task.requested_by: abort(403)
+    task.approved_at = datetime.now()
+    database.session.commit()
+    flash(f'Task "{task.summary}" approved. Payment to provider pending.')
+    return redirect(url_for('tasks.get_task', task_id=task.id))
 
-@blueprint.route('/<int:task_id>/reject')
+@blueprint.post('/<int:task_id>/reject')
 @login_required
 def reject_task(task_id:int) -> Response:
     '''Allows the requester to deny a task is complete, then re-open it.'''
-    pass
+    task = database.session.get(Task, task_id)
+    if current_user.id != task.requested_by: abort(403)
+    task.completed_at = None
+    database.session.commit()
+    flash(f'Task "{task.summary}" rejected. Please leave a comment explaining why.')
+    return redirect(url_for('tasks.get_task', task_id=task.id))
 
 @blueprint.route('/requested/<int:user_id>')
 def requested_by(user_id:int) -> Response:

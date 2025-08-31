@@ -27,15 +27,24 @@ TASK_DATA = [{'summary':f'Setup {i} laptops',
               for i in range(2, 13)]
 
 TASK_DATA[0]['accepted_by'] = 3  # user2 (task completed + approved)
-TASK_DATA[0]['accepted_at'] = date.today()-timedelta(hours=18)
-TASK_DATA[0]['completed_at'] = date.today()-timedelta(hours=12)
-TASK_DATA[0]['approved_at'] = date.today()-timedelta(hours=6)
+TASK_DATA[0]['accepted_at'] = date.today()-timedelta(2)
+TASK_DATA[0]['completed_at'] = date.today()-timedelta(1)
+TASK_DATA[0]['approved_at'] = date.today()
 
 TASK_DATA[1]['requested_by'] = 3 # user2 (task completed + approved)
 TASK_DATA[1]['accepted_by'] = 2  # user1 (only task approved)
-TASK_DATA[1]['accepted_at'] = date.today()-timedelta(hours=18)
-TASK_DATA[1]['completed_at'] = date.today()-timedelta(hours=12)
-TASK_DATA[1]['approved_at'] = date.today()-timedelta(hours=6)
+TASK_DATA[1]['accepted_at'] = date.today()-timedelta(1)
+TASK_DATA[1]['completed_at'] = date.today()
+TASK_DATA[1]['approved_at'] = date.today()
+
+# task 2 (id:3) is accepted but not completed or approved
+TASK_DATA[2]['accepted_by'] = 2  # user1
+TASK_DATA[2]['accepted_at'] = date.today()
+
+# task 3 (id:4) is accepted and completed but not approved
+TASK_DATA[3]['accepted_by'] = 2  # user1
+TASK_DATA[3]['accepted_at'] = date.today()-timedelta(1)
+TASK_DATA[3]['completed_at'] = date.today()
 
 # user3 (id:4) needs neither, but they do need a tagline and bio
 USER_DATA[3]['headline'] = '3rd rock'

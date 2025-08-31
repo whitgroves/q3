@@ -37,10 +37,7 @@ class ProdConfig(BaseConfig): # pylint: disable=too-few-public-methods
         SQLITE_PREFIX + os.path.join(DATABASE_DIR, 'qqueue.db')
 
 
-ACCEPTED_CURRENCIES = [
-    'USD',
-    'EUR',
-    'CAD',
+ACCEPTED_CURRENCIES = ['USD', 'EUR', 'CAD'] + sorted([
     'USDT',
     'BTC',
     'ETH',
@@ -48,7 +45,6 @@ ACCEPTED_CURRENCIES = [
     'USDC',
     'SOL',
     'XRP',
-    'FDUSD',
     'BNB',
     'DOGE',
     'LINK',
@@ -56,4 +52,5 @@ ACCEPTED_CURRENCIES = [
     'TRX',
     'CRO',
     'AVAX',
-]
+    'LTC',
+])

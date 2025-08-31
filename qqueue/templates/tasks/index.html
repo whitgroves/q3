@@ -10,6 +10,7 @@
             {% for task in tasks %}
                 {{ display_task(task) }}    
             {% endfor %}
+            <hr>
             <p>Need your own task done? <a href="{{ url_for('tasks.new_task') }}">Click here</a> to create a request.</p>
         {% else %}
             <p>There are no open requests at this time.</p>

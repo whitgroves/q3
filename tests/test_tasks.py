@@ -37,8 +37,8 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
     assert response.status_code == 200
     tasks_seen = 0
     for i, task in enumerate(TASK_DATA):
-        # Tasks 0 and 1 are accepted, so should only see 2, 3, 4, 5, and 6
-        if i > 6 or 'accepted_by' in task:
+        # Tasks 0-3 are accepted, so should only see 4, 5, 6, 7, 8
+        if i > 8 or 'accepted_by' in task:
             assert task['summary'] not in response.text
         else:
             assert task['summary'] in response.text
@@ -143,7 +143,7 @@ def test_new_task(client:FlaskClient) -> None:
                            follow_redirects=True)
     assert response.status_code == 200
     assert response.request.path == redirect
-    assert all(str(text) in response.text for text in new_task.values())
+    assert all(str(value) in response.text for value in new_task.values())
 
     # Now try again without the CSRF token; request should fail (400)
     redirect = f'/tasks/{len(TASK_DATA)+2}'
@@ -179,15 +179,165 @@ def test_get_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>'''
 
     # Future-proofing
-    task_id = randint(1, len(TASK_DATA))
-    endpoint = f'/tasks/{task_id}'
-
+    shared_text = [ # always visible
+        '<button class="btn btn-primary">Leave a Comment</button>',
+    ]
+    update_text = [
+        '<button class="btn btn-primary">Edit Request</button>',
+        '<button class="btn btn-danger">Delete Task</button>',
+    ]
+    accept_text = [
+        '<button type="submit" class="btn btn-success">Accept Request</button></form>', # pylint disable=line-too-long
+    ]
+    provider_text = [
+        '<button class="btn btn-success">Complete Order</button>',
+        '<button class="btn btn-warning">Release Task</button>',
+    ]
+    approver_text = [
+        '<button class="btn btn-primary">Approve Work</button>',
+        '<button class="btn btn-danger">Reject Order</button>',
+    ]
+    display_fields = [
+        'summary',
+        'detail',
+        'reward_amount',
+        'reward_currency',
+        'due_by',
+        'requested_by'
+    ]
+    def get_sample(min_id:int, max_id:int) -> tuple[str, dict]:
+        '''Helper that pulls a sample task based on DATABASE id'''
+        task_id = randint(min_id, max_id)
+        return f'/tasks/{task_id}', TASK_DATA[task_id-1]
+    
+    # The first sample is any of the non-accepted tasks in the test data
+    endpoint, sample_task = get_sample(5, len(TASK_DATA))
+    
     # Accessing while logged out redirects to login
     assert_redirect(client.get(endpoint))
 
-    # Logged in user can see all fields in the test data
+    # Logged in user can see all fields in the test data and the option to
+    # accept or comment but not the options to edit or delete. We use user3
+    # since they aren't associated with any tasks.
+    authenticate_user(credentials=USER_DATA[3], client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text 
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
 
-    # The task requester, and only them, can see the edit and delete buttons
+    # The requester of the task should be able to see edit, delete, and comment,
+    # but not to accept the task themselves
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text 
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
+
+    # For an accepted task, the requester should not see edit/delete options, 
+    # but only have the option to leave a comment...
+    endpoint, sample_task = get_sample(3, 3)
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text 
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
+
+    # ...the provider should not see edit/delete options,
+    # but have the options to leave a comment, release, or complete the task...
+    authenticate_user(credentials=USER_DATA[sample_task['accepted_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text 
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
+
+    # ...and unrelated users should get redirected to the tasks index.
+    authenticate_user(credentials=USER_DATA[3], client=client)
+    assert_redirect(client.get(endpoint), redirect='/tasks')
+
+    # For accepted and completed tasks, the provider should only see the option
+    # to comment...
+    endpoint, sample_task = get_sample(4, 4)
+    authenticate_user(credentials=USER_DATA[sample_task['accepted_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text 
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
+
+    # ...the requester should have options to comment/approve/reject...
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text 
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text in response.text for text in approver_text)
+
+    # ...and unrelated users should get redirected to the tasks index.
+    authenticate_user(credentials=USER_DATA[3], client=client)
+    assert_redirect(client.get(endpoint), redirect='/tasks')
+
+    # Once approved, the only option available for providers and requesters
+    # is to leave a comment; all other users get redirected.
+    endpoint, sample_task = get_sample(1, 2)
+    authenticate_user(credentials=USER_DATA[sample_task['accepted_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text 
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
+
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text 
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
+
+    authenticate_user(credentials=USER_DATA[3], client=client)
+    assert_redirect(client.get(endpoint), redirect='/tasks')
 
 def test_edit_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/edit'''
@@ -201,8 +351,8 @@ def test_accept_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/accept'''
     pass
 
-def test_decline_task(client:FlaskClient) -> None:
-    '''Tests the endpoint /tasks/<task_id>/decline'''
+def test_release_task(client:FlaskClient) -> None:
+    '''Tests the endpoint /tasks/<task_id>/release'''
     pass
 
 def test_complete_task(client:FlaskClient) -> None:
