@@ -5,7 +5,6 @@ Task routes for qqueue. Includes:
 from datetime import date, datetime
 from flask import Blueprint, Response, request, render_template, flash, redirect, url_for, abort, current_app
 from flask_login import login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
 from qqueue.forms import TaskForm
 from qqueue.models import Task, User
 from qqueue.extensions import database, endpoint_exception

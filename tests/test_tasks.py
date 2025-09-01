@@ -175,7 +175,7 @@ def test_new_task(client:FlaskClient) -> None:
     assert response.status_code == 400
     assert response.request.path == endpoint
 
-def test_get_task(client:FlaskClient) -> None:
+def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statements
     '''Tests the endpoint /tasks/<task_id>'''
 
     # Future-proofing
@@ -217,10 +217,10 @@ def test_get_task(client:FlaskClient) -> None:
         '''Helper that pulls a sample task based on database id (NOT index)'''
         task_id = randint(min_id, max_id)
         return f'/tasks/{task_id}', TASK_DATA[task_id-1]
-    
+
     # The first sample is any of the non-accepted tasks in the test data
     endpoint, sample_task = get_sample(5, len(TASK_DATA))
-    
+
     # Accessing while logged out redirects to login
     assert_redirect(client.get(endpoint))
 
@@ -230,7 +230,7 @@ def test_get_task(client:FlaskClient) -> None:
     authenticate_user(credentials=USER_DATA[3], client=client)
     response = client.get(endpoint)
     assert response.status_code == 200
-    assert all(str(sample_task[field]) in response.text 
+    assert all(str(sample_task[field]) in response.text
                for field in display_fields)
     assert all(text in response.text for text in shared_text)
     assert all(text not in response.text for text in update_text)
@@ -244,7 +244,7 @@ def test_get_task(client:FlaskClient) -> None:
                       client=client)
     response = client.get(endpoint)
     assert response.status_code == 200
-    assert all(str(sample_task[field]) in response.text 
+    assert all(str(sample_task[field]) in response.text
                for field in display_fields)
     assert all(text in response.text for text in shared_text)
     assert all(text in response.text for text in update_text)
@@ -252,14 +252,14 @@ def test_get_task(client:FlaskClient) -> None:
     assert all(text not in response.text for text in provider_text)
     assert all(text not in response.text for text in approver_text)
 
-    # For an accepted task, the requester should not see edit/delete options, 
+    # For an accepted task, the requester should not see edit/delete options,
     # but only have the option to leave a comment...
     endpoint, sample_task = get_sample(3, 3)
     authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
                       client=client)
     response = client.get(endpoint)
     assert response.status_code == 200
-    assert all(str(sample_task[field]) in response.text 
+    assert all(str(sample_task[field]) in response.text
                for field in display_fields)
     assert all(text in response.text for text in shared_text)
     assert all(text not in response.text for text in update_text)
@@ -273,7 +273,7 @@ def test_get_task(client:FlaskClient) -> None:
                       client=client)
     response = client.get(endpoint)
     assert response.status_code == 200
-    assert all(str(sample_task[field]) in response.text 
+    assert all(str(sample_task[field]) in response.text
                for field in display_fields)
     assert all(text in response.text for text in shared_text)
     assert all(text not in response.text for text in update_text)
@@ -292,7 +292,7 @@ def test_get_task(client:FlaskClient) -> None:
                       client=client)
     response = client.get(endpoint)
     assert response.status_code == 200
-    assert all(str(sample_task[field]) in response.text 
+    assert all(str(sample_task[field]) in response.text
                for field in display_fields)
     assert all(text in response.text for text in shared_text)
     assert all(text not in response.text for text in update_text)
@@ -305,7 +305,7 @@ def test_get_task(client:FlaskClient) -> None:
                       client=client)
     response = client.get(endpoint)
     assert response.status_code == 200
-    assert all(str(sample_task[field]) in response.text 
+    assert all(str(sample_task[field]) in response.text
                for field in display_fields)
     assert all(text in response.text for text in shared_text)
     assert all(text not in response.text for text in update_text)
@@ -324,7 +324,7 @@ def test_get_task(client:FlaskClient) -> None:
                       client=client)
     response = client.get(endpoint)
     assert response.status_code == 200
-    assert all(str(sample_task[field]) in response.text 
+    assert all(str(sample_task[field]) in response.text
                for field in display_fields)
     assert all(text in response.text for text in shared_text)
     assert all(text not in response.text for text in update_text)
@@ -336,7 +336,7 @@ def test_get_task(client:FlaskClient) -> None:
                       client=client)
     response = client.get(endpoint)
     assert response.status_code == 200
-    assert all(str(sample_task[field]) in response.text 
+    assert all(str(sample_task[field]) in response.text
                for field in display_fields)
     assert all(text in response.text for text in shared_text)
     assert all(text not in response.text for text in update_text)
@@ -349,7 +349,7 @@ def test_get_task(client:FlaskClient) -> None:
 
 def test_edit_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/edit'''
-    
+
     # Future-proofing
     task_edits = {
         'summary': 'Make edits to this task',
@@ -362,7 +362,7 @@ def test_edit_task(client:FlaskClient) -> None:
         '''Helper that pulls a sample task based on database id (NOT index)'''
         task_id = randint(min_id, max_id)
         return f'/tasks/{task_id}/edit', TASK_DATA[task_id-1]
-    
+
     # Sample is drawn from non-accepted tasks
     endpoint, sample_task = get_sample(5, len(TASK_DATA))
 
@@ -373,7 +373,7 @@ def test_edit_task(client:FlaskClient) -> None:
     # Login to generate CSRF token and valid edit data
     authenticate_user(credentials=USER_DATA[3], client=client)
     data = {'csrf_token':g.csrf_token, **task_edits}
-    
+
     # Even when logged in, non-requesters are redirected to the task's
     # display page. user3 is used here since they have 0 requests.
     redirect = endpoint.replace('/edit', '')

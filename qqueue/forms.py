@@ -1,7 +1,7 @@
 '''Secured forms for qqueue built on WTForms + Flask-WTF.'''
 
 from wtforms import EmailField, StringField, PasswordField, TextAreaField, FloatField, SelectField, DateField
-from wtforms.validators import DataRequired, Length, NumberRange, AnyOf
+from wtforms.validators import DataRequired, Length, NumberRange
 from flask_wtf import FlaskForm
 from qqueue.config import ACCEPTED_CURRENCIES
 
