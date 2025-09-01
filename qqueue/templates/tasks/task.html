@@ -12,15 +12,17 @@
                 {% if current_user.id == task.requested_by %}
                 <div class="row">
                     <div class="col-md-auto">
-                        <button class="btn btn-primary">Edit Request</button>
+                        <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}">
+                            <button class="btn btn-primary">Edit Request</button></a>
                     </div>
                     <div class="col-md-auto">
-                        <button class="btn btn-danger">Delete Task</button>
+                        <form method="POST" action="{{ url_for('tasks.delete_task', task_id=task.id) }}">
+                            <button class="btn btn-danger">Delete Task</button></form>
                     </div>
                 </div>
                 {% else %}
                     <form method="POST" action="{{ url_for('tasks.accept_task', task_id=task.id) }}">
-                        <button type="submit" class="btn btn-success">Accept Request</button></form>
+                        <button class="btn btn-success">Accept Request</button></form>
                 {% endif %}
             {% elif not task.completed_at %}
                 {% if current_user.id == task.accepted_by %}
@@ -51,7 +53,8 @@
             {% endif %}
         </div>
         <div class="col text-end">
-            <button class="btn btn-primary">Leave a Comment</button>
+            <a href="{{ url_for('tasks.new_comment', task_id=task.id) }}">
+                <button class="btn btn-primary">Leave a Comment</button></a>
         </div>
     </div>
 {% endblock %}

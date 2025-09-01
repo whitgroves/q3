@@ -180,22 +180,30 @@ def test_get_task(client:FlaskClient) -> None:
 
     # Future-proofing
     shared_text = [ # always visible
+        '/comment',
         '<button class="btn btn-primary">Leave a Comment</button>',
     ]
     update_text = [
-        '<button class="btn btn-primary">Edit Request</button>',
-        '<button class="btn btn-danger">Delete Task</button>',
+        '/edit',
+        '<button class="btn btn-primary">Edit Request</button></a>',
+        '/delete',
+        '<button class="btn btn-danger">Delete Task</button></form>',
     ]
     accept_text = [
-        '<button type="submit" class="btn btn-success">Accept Request</button></form>', # pylint disable=line-too-long
+        '/accept',
+        '<button class="btn btn-success">Accept Request</button></form>',
     ]
     provider_text = [
-        '<button class="btn btn-success">Complete Order</button>',
-        '<button class="btn btn-warning">Release Task</button>',
+        '/complete',
+        '<button class="btn btn-success">Complete Order</button></form>',
+        '/release',
+        '<button class="btn btn-warning">Release Task</button></form>',
     ]
     approver_text = [
-        '<button class="btn btn-primary">Approve Work</button>',
-        '<button class="btn btn-danger">Reject Order</button>',
+        '/approve',
+        '<button class="btn btn-primary">Approve Work</button></form>',
+        '/reject',
+        '<button class="btn btn-danger">Reject Order</button></form>',
     ]
     display_fields = [
         'summary',
@@ -206,7 +214,7 @@ def test_get_task(client:FlaskClient) -> None:
         'requested_by'
     ]
     def get_sample(min_id:int, max_id:int) -> tuple[str, dict]:
-        '''Helper that pulls a sample task based on DATABASE id'''
+        '''Helper that pulls a sample task based on database id (NOT index)'''
         task_id = randint(min_id, max_id)
         return f'/tasks/{task_id}', TASK_DATA[task_id-1]
     
@@ -341,7 +349,77 @@ def test_get_task(client:FlaskClient) -> None:
 
 def test_edit_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/edit'''
-    pass
+    
+    # Future-proofing
+    task_edits = {
+        'summary': 'Make edits to this task',
+        'detail': 'Something you would not expect to see!',
+        'reward_amount': 69.0,
+        'reward_currency': choice(ACCEPTED_CURRENCIES),
+        'due_by': date.today()+timedelta(randint(0, 30)),
+    }
+    def get_sample(min_id:int, max_id:int) -> tuple[str, dict]:
+        '''Helper that pulls a sample task based on database id (NOT index)'''
+        task_id = randint(min_id, max_id)
+        return f'/tasks/{task_id}/edit', TASK_DATA[task_id-1]
+    
+    # Sample is drawn from non-accepted tasks
+    endpoint, sample_task = get_sample(5, len(TASK_DATA))
+
+    # Both GET and POST requests redirect to login when logged out
+    assert_redirect(client.get(endpoint))
+    assert_redirect(client.post(endpoint, data=task_edits))
+
+    # Login to generate CSRF token and valid edit data
+    authenticate_user(credentials=USER_DATA[3], client=client)
+    data = {'csrf_token':g.csrf_token, **task_edits}
+    
+    # Even when logged in, non-requesters are redirected to the task's
+    # display page. user3 is used here since they have 0 requests.
+    redirect = endpoint.replace('/edit', '')
+    assert_redirect(client.get(endpoint), redirect=redirect)
+    assert_redirect(client.post(endpoint, data=data), redirect=redirect)
+
+    # Only the task requester can load into the edit page, whic pre-populates
+    # with the existing task data for all editable fields
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert response.request.path == endpoint
+    assert all(str(sample_task[field]) in response.text for field in task_edits)
+
+    # And edits that they make are accepted and displayed after the app
+    # redirects to the task page upon submission
+    response = client.post(endpoint, data=data, follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == redirect
+    # for value in task_edits.values():
+    #     assert str(value) in response.text
+    assert all(str(value) in response.text for value in task_edits.values())
+
+    # But no updates are accepted without the CSRF token.
+    # Here, we attempt to re-update to new values, but this should fail
+    response = client.post(endpoint, data=task_edits)
+    assert response.status_code == 400
+
+    # For accepted/completed/approved tasks, the user should get redirected
+    # to the task page with no changes if related, or the tasks index if not
+    test_cases = {
+        'accepted': get_sample(3, 3),
+        'completed': get_sample(4, 4),
+        'approved': get_sample(1, 2),
+    }
+    for _, (endpoint, sample_task) in test_cases.items():
+        authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                          client=client)
+        redirect = endpoint.replace('/edit', '')
+        assert_redirect(client.get(endpoint), redirect=redirect)
+        assert_redirect(client.post(endpoint, data=data), redirect=redirect)
+        authenticate_user(credentials=USER_DATA[3], client=client)
+        redirect = '/tasks'
+        assert_redirect(client.get(endpoint), redirect=redirect)
+        assert_redirect(client.post(endpoint, data=data), redirect=redirect)
 
 def test_delete_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/delete'''

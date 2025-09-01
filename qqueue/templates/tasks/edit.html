@@ -11,7 +11,7 @@
         <p>{{ form.summary(class='form-control', size=256, value=task.summary) }}</p>
 
         <h5>{{ form.detail.label(class='form-label') }}</h5>
-        <p><textarea class='form-control' id='detail' name='detail'>{{ taask.detail }}</textarea></p>
+        <p><textarea class='form-control' id='detail' name='detail'>{{ task.detail }}</textarea></p>
 
         <h5>{{ form.reward_amount.label(class='form-label') }}</h5>
         <p>{{ form.reward_amount(class='form-control', value=task.reward_amount) }}</p>
@@ -20,7 +20,7 @@
         <p>{{ form.reward_currency(class='form-control', value=task.reward_currency) }}</p>
 
         <h5>{{ form.due_by.label(class='form-label') }}</h5>
-        <p>{{ form.due_by(class='form-control', value=ttask..due_by) }}</p>
+        <p>{{ form.due_by(class='form-control', value=task.due_by) }}</p>
 
         <p><button type="submit" class="btn btn-primary">Create Task</button></p>
     </form>

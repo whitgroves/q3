@@ -71,14 +71,15 @@ def get_task(task_id:int) -> Response:
 def edit_task(task_id:int) -> Response:
     '''Updates the task matching `task_id`, if it exists.'''
     task = database.session.get(Task, task_id)
-    code = 302
     should_redirect = False
     if not task: 
         should_redirect = True
         code = 403
-    if current_user.id not in [task.requested_by, task.accepted_by]:
+    elif task.accepted_by or current_user.id != task.requested_by:
         should_redirect = True
-    if should_redirect: redirect(url_for('tasks.index'), code=code)
+        code = 302
+    if should_redirect:
+        return redirect(url_for('tasks.get_task',task_id=task_id), code=code)
     form = TaskForm()
     match request.method:
         case 'GET':
@@ -94,11 +95,11 @@ def edit_task(task_id:int) -> Response:
                 flash('Due date cannot be in the past.')
                 errors=True
             if not errors and form.validate_on_submit():
-                task = Task(summary=summary,
-                            detail=detail,
-                            reward_amount=reward_amount,
-                            reward_currency=reward_currency,
-                            due_by=due_by)
+                task.summary=summary
+                task.detail=detail
+                task.reward_amount=reward_amount
+                task.reward_currency=reward_currency
+                task.due_by=due_by
                 database.session.add(task)
                 database.session.commit()
                 message = f'Task "{summary}" updated successfully.'
@@ -142,7 +143,7 @@ def release_task(task_id:int) -> Response:
     task.accepted_at = None
     task.accepted_by = None
     database.session.commit()
-    flash(f'Task "{task.summary}" released. Do not re-claim unless you can complete it.')
+    flash(f'Task "{task.summary}" released. Do not re-claim unless you can complete it.') # pylint: disable=line-too-long
     return redirect(url_for('tasks.get_task', task_id=task.id))
 
 @blueprint.post('/<int:task_id>/complete')
@@ -153,7 +154,7 @@ def complete_task(task_id:int) -> Response:
     if current_user.id != task.accepted_by: abort(403)
     task.completed_at = datetime.now()
     database.session.commit()
-    flash(f'Task "{task.summary}" marked as complete. Waiting on requester approval.')
+    flash(f'Task "{task.summary}" marked as complete. Waiting on requester approval.') # pylint: disable=line-too-long
     return redirect(url_for('tasks.get_task', task_id=task.id))
 
 @blueprint.post('/<int:task_id>/approve')
@@ -175,7 +176,7 @@ def reject_task(task_id:int) -> Response:
     if current_user.id != task.requested_by: abort(403)
     task.completed_at = None
     database.session.commit()
-    flash(f'Task "{task.summary}" rejected. Please leave a comment explaining why.')
+    flash(f'Task "{task.summary}" rejected. Please leave a comment explaining why.') # pylint: disable=line-too-long
     return redirect(url_for('tasks.get_task', task_id=task.id))
 
 @blueprint.route('/requested/<int:user_id>')
@@ -183,7 +184,37 @@ def requested_by(user_id:int) -> Response:
     '''Returns all of the open tasks requested by `user_id`.'''
     pass
 
-@blueprint.route('/accepted')
+@blueprint.route('/accepted/<int:user_id>')
 def accepted_by(user_id:int) -> Response:
-    '''Returns all of the tasks accepted by the current user.'''
+    '''Returns all of `user_id`'s accepted tasks related to current_user.'''
+    pass
+
+@blueprint.route('/<int:task_id>/comments/new')
+@login_required
+def new_comment(task_id:int) -> Response:
+    '''Leaves a new comment on a task.'''
+    pass
+
+@blueprint.route('/<int:task_id>/comments')
+@login_required
+def get_comments(task_id:int) -> Response:
+    '''Retreives all the comments for a task.'''
+    pass
+
+@blueprint.route('/comments/<int:comment_id>')
+@login_required
+def get_comment(comment_id:int) -> Response:
+    '''Gets a singular comment outside of the task's context.'''
+    pass
+
+@blueprint.route('/comments/<int:comment_id>/edit', methods=('GET', 'POST'))
+@login_required
+def edit_comment(comment_id:int) -> Response:
+    '''Endpoint that handles task comment updates.'''
+    pass
+
+@blueprint.post('/comments/<int:commend_id>/delete')
+@login_required
+def delete_comment(comment_id:int) -> Response:
+    '''Deletes the specified comment, if it exists.'''
     pass
