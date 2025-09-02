@@ -14,10 +14,20 @@ blueprint = Blueprint('tasks', __name__)
 @blueprint.route('/')
 def index() -> Response:
     data = dict()
-    tasks = Task.query.filter(Task.accepted_at == None).order_by(Task.due_by).all()
     if current_user.is_authenticated:
-        data['tasks'] = tasks
+        tasks = Task.query.filter(Task.completed_at == None).order_by(Task.due_by).all()
+        data['open_tasks'] = []
+        data['requested_tasks'] = []
+        data['accepted_tasks'] = []
+        for task in tasks:
+            if task.accepted_at is None:
+                data['open_tasks'].append(task)
+            elif task.requested_by == current_user.id:
+                data['requested_tasks'].append(task)
+            elif task.accepted_by == current_user.id:
+                data['accepted_tasks'].append(task)
     else:
+        tasks = Task.query.filter(Task.accepted_at == None).order_by(Task.due_by).all()
         data['summaries'] = [task.summary for task in tasks[:5]]
     return render_template('tasks/index.html', **data)
 

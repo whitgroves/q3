@@ -11,10 +11,12 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
 
     # Future-proofing
     endpoint = '/tasks/'
-    logged_in_with_tasks_text = [
-        "<p>Here are today's open requests:</p>",
-        '<p>Need your own task done? <a href=',
+    logged_in_shared_text = [
+        '<p>Need a task done? <a href=',
         '>Click here</a> to create a request.</p>',
+    ]
+    logged_in_with_tasks_text = [
+        '<p>Here are these open requests from other users:</p>'
     ]
     logged_out_with_tasks_text = [
         '>Register now</a> to view, create, and complete tasks like:</p>',
@@ -22,9 +24,7 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
         '>Click here</a> to login.</p>',
     ]
     logged_in_no_tasks_text = [
-        '<p>There are no open requests at this time.</p>',
-        '>Create one</a> or see <a href=',
-        '>who else</a> is on qqueue.</p>',
+        '<p>There are no other open requests at this time.</p>',
     ]
     logged_out_no_tasks_text = [
         '>Login</a> or <a href=',
@@ -55,12 +55,22 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
     assert all(text not in response.text for text in logged_out_no_tasks_text)
 
     # But when logged in, summaries, details, requester, due date, and rewards
-    # should be visible for all unclaimed tasks in the system
-    authenticate_user(credentials=choice(USER_DATA), client=client)
+    # should be visible for all unclaimed tasks in the system or for any tasks
+    # related to the user (they are requester or accepter)
+    user_id = randint(1, 3)
+    authenticate_user(credentials=USER_DATA[user_id-1], client=client)
     response = client.get(endpoint)
     assert response.status_code == 200
     for task in TASK_DATA:
-        if 'accepted_by' in task:
+        if 'accepted_at' not in task or\
+            (user_id in [task['accepted_by'], task['requested_by']] and 'completed_at' not in task): # pylint: disable=line-too-long
+            assert task['summary'] in response.text
+            assert task['detail'] in response.text
+            assert str(task['reward_amount']) in response.text
+            assert task['reward_currency'] in response.text
+            assert str(task['due_by']) in response.text
+            assert f'/users/{task["requested_by"]}' in response.text
+        else:
             assert task['summary'] not in response.text
             assert task['detail'] not in response.text
             assert str(task['reward_amount']) not in response.text
@@ -68,14 +78,7 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
             assert str(task['due_by']) not in response.text
             assert str(task['accepted_at']) not in response.text
             # cannot check for absence of user links since there are 2 of them
-            # and either could have a value the other isn't supposed to
-        else:
-            assert task['summary'] in response.text
-            assert task['detail'] in response.text
-            assert str(task['reward_amount']) in response.text
-            assert task['reward_currency'] in response.text
-            assert str(task['due_by']) in response.text
-            assert f'/users/{task["requested_by"]}' in response.text
+            # and either could have a value the other isn't supposed to            
     assert all(text in response.text for text in logged_in_with_tasks_text)
     assert all(text not in response.text for text in logged_out_with_tasks_text)
     assert all(text not in response.text for text in logged_in_no_tasks_text)
@@ -85,7 +88,8 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
     # no tasks should be displayed
     Task.query.filter(Task.accepted_at == None).delete(synchronize_session=False) # pylint: disable=line-too-long, singleton-comparison
 
-    # The user is still logged in, so test that scenario first
+    # We will use user3 since they are not associated with any tasks
+    authenticate_user(credentials=USER_DATA[3], client=client)
     response = client.get(endpoint)
     assert response.status_code == 200
     for task in TASK_DATA:
@@ -94,6 +98,7 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
         assert str(task['reward_amount']) not in response.text
         assert task['reward_currency'] not in response.text
         assert str(task['due_by']) not in response.text
+    assert all(text in response.text for text in logged_in_shared_text)
     assert all(text not in response.text for text in logged_in_with_tasks_text)
     assert all(text not in response.text for text in logged_out_with_tasks_text)
     assert all(text in response.text for text in logged_in_no_tasks_text)
