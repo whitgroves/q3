@@ -78,7 +78,7 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
             assert str(task['due_by']) not in response.text
             assert str(task['accepted_at']) not in response.text
             # cannot check for absence of user links since there are 2 of them
-            # and either could have a value the other isn't supposed to            
+            # and either could have a value the other isn't supposed to
     assert all(text in response.text for text in logged_in_with_tasks_text)
     assert all(text not in response.text for text in logged_out_with_tasks_text)
     assert all(text not in response.text for text in logged_in_no_tasks_text)
@@ -428,7 +428,7 @@ def test_edit_task(client:FlaskClient) -> None:
 
 def test_delete_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/delete'''
-    
+
     # Future-proofing
     redirect = '/tasks/'
     def get_sample(min_id:int, max_id:int) -> tuple[str, dict]:
@@ -441,7 +441,7 @@ def test_delete_task(client:FlaskClient) -> None:
     # We use user3 (id:4) again since they aren't associated with any tasks.
     authenticate_user(credentials=USER_DATA[3], client=client)
     task_id, endpoint, sample_task = get_sample(5, len(TASK_DATA))
-    
+
     response = client.post(endpoint)
     assert response.status_code == 403
     assert database.session.get(Task, task_id) is not None
@@ -457,7 +457,7 @@ def test_delete_task(client:FlaskClient) -> None:
     response = client.get(f'/tasks/{task_id}')
     assert response.status_code == 404
     response = client.get(redirect)
-    assert sample_task['summary'] in response.text # Task "<summary>" was deleted
+    assert sample_task['summary'] in response.text # Task "..." was deleted
     assert sample_task['detail'] not in response.text
 
     # For an accepted/completed/approved task, the delete request should fail
@@ -468,7 +468,7 @@ def test_delete_task(client:FlaskClient) -> None:
         USER_DATA[sample_task['requested_by']-1], # requester
         USER_DATA[sample_task['accepted_by']-1],  # accepter
     ]
-    for i, test_user in enumerate(test_cases):    # order matters
+    for test_user in test_cases:
         authenticate_user(credentials=test_user, client=client)
         response = client.post(endpoint)
         assert response.status_code == 403
@@ -476,7 +476,7 @@ def test_delete_task(client:FlaskClient) -> None:
 
 def test_accept_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/accept'''
-    
+
     # Future-proofing
     def get_sample(min_id:int, max_id:int) -> tuple[str, dict]:
         '''Helper that pulls a sample task based on database id (NOT index)'''
@@ -494,7 +494,8 @@ def test_accept_task(client:FlaskClient) -> None:
     # However, any other user can. We use either user1 or user3 since neither
     # has requested any tasks
     authenticate_user(credentials=USER_DATA[choice([1, 3])], client=client)
-    assert_redirect(response=client.post(endpoint), redirect=f'/tasks/{task_id}')
+    assert_redirect(response=client.post(endpoint),
+                    redirect=f'/tasks/{task_id}')
     assert database.session.get(Task, task_id).accepted_at is not None
 
     # For an accepted/completed/approved task, the endpoint will fail for
@@ -509,7 +510,7 @@ def test_accept_task(client:FlaskClient) -> None:
 
 def test_release_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/release'''
-    
+
     # Future-proofing
     def get_sample(min_id:int, max_id:int) -> tuple[int, str, dict]:
         '''Helper that pulls a sample task based on database id (NOT index)'''
@@ -650,11 +651,3 @@ def test_reject_task(client:FlaskClient) -> None:
         response = client.post(endpoint)
         assert response.status_code == 403
         assert database.session.get(Task, task_id).completed_at == completed_at
-
-def test_requested_by(client:FlaskClient) -> None:
-    '''Tests the endpoint /tasks/requested/<user_id>'''
-    pass
-
-def test_accepted_by(client:FlaskClient) -> None:
-    '''Tests the endpoint /tasks/accepted/<user_id>'''
-    pass
