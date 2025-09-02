@@ -3,7 +3,7 @@
 from random import choice, randint
 from flask import g # globals - needed for CSRF token
 from flask.testing import FlaskClient
-from tests.conftest import USER_DATA, TASK_DATA, Task, date, timedelta, authenticate_user, assert_redirect
+from tests.conftest import USER_DATA, TASK_DATA, Task, date, timedelta, authenticate_user, assert_redirect, database
 from qqueue.config import ACCEPTED_CURRENCIES
 
 def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statements
@@ -423,7 +423,50 @@ def test_edit_task(client:FlaskClient) -> None:
 
 def test_delete_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/delete'''
-    pass
+    
+    # Future-proofing
+    redirect = '/tasks/'
+    def get_sample(min_id:int, max_id:int) -> tuple[str, dict]:
+        '''Helper that pulls a sample task based on database id (NOT index)'''
+        task_id = randint(min_id, max_id)
+        return task_id, f'/tasks/{task_id}/delete', TASK_DATA[task_id-1]
+
+    # A user that is unrelated to the task cannot delete it, and will be
+    # redirected to the tasks index with the task still in the database
+    # We use user3 (id:4) again since they aren't associated with any tasks.
+    authenticate_user(credentials=USER_DATA[3], client=client)
+    task_id, endpoint, sample_task = get_sample(5, len(TASK_DATA))
+    
+    response = client.post(endpoint, data={'csrf_token':g.csrf_token})
+    assert response.status_code == 403
+    assert database.session.get(Task, task_id) is not None
+    assert sample_task['detail'] in client.get(redirect).text
+    # The task requester, however, can delete the task, and gets redirected
+    # back to the task index with the task removed from the database
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    assert database.session.get(Task, task_id) is not None # sanity check
+    assert_redirect(response=client.post(endpoint),redirect=redirect)
+    assert database.session.get(Task, task_id) is None
+    response = client.get(f'/tasks/{task_id}')
+    assert response.status_code == 404
+    response = client.get(redirect)
+    assert sample_task['summary'] in response.text # Task "<summary>" was deleted
+    assert sample_task['detail'] not in response.text
+
+    # For an accepted/completed/approved task, the delete request should fail
+    # for any user, even the accepter or requester
+    task_id, endpoint, sample_task = get_sample(1, 4)
+    test_cases = [
+        USER_DATA[3],                             # unrelated user
+        USER_DATA[sample_task['requested_by']-1], # requester
+        USER_DATA[sample_task['accepted_by']-1],  # accepter
+    ]
+    for i, test_user in enumerate(test_cases):    # order matters
+        authenticate_user(credentials=test_user, client=client)
+        response = client.post(endpoint, data={'csrf_token':g.csrf_token})
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id) is not None
 
 def test_accept_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/accept'''
