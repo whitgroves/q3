@@ -565,7 +565,7 @@ def test_complete_task(client:FlaskClient) -> None:
     assert_redirect(client.post(endpoint), redirect=f'/tasks/{task_id}')
     assert database.session.get(Task, task_id).completed_at is not None
 
-    # For completed tasks, no one may release it
+    # For completed tasks, no one may complete it
     task_id, endpoint, sample_task = get_sample(1, 4)
     completed_at = database.session.get(Task, task_id).completed_at
     for test_user in USER_DATA:
@@ -583,7 +583,7 @@ def test_approve_task(client:FlaskClient) -> None:
         task_id = randint(min_id, max_id)
         return task_id, f'/tasks/{task_id}/approve', TASK_DATA[task_id-1]
 
-    # Only task index 3 (id:4) is ready to be completed (not approved/rejected)
+    # Only task index 3 (id:4) is ready to be approved (completed/unrejected)
     task_id, endpoint, sample_task = get_sample(4, 4)
     assert database.session.get(Task, task_id).completed_at is not None
     assert database.session.get(Task, task_id).approved_at is None
@@ -601,8 +601,8 @@ def test_approve_task(client:FlaskClient) -> None:
     assert_redirect(client.post(endpoint), redirect=f'/tasks/{task_id}')
     assert database.session.get(Task, task_id).approved_at is not None
 
-    # For completed tasks, no one may release it
-    task_id, endpoint, sample_task = get_sample(1, 4)
+    # For approved tasks, no one may re-approve it
+    task_id, endpoint, sample_task = get_sample(1, 2)
     approved_at = database.session.get(Task, task_id).approved_at
     for test_user in USER_DATA:
         authenticate_user(credentials=test_user, client=client)
@@ -612,7 +612,39 @@ def test_approve_task(client:FlaskClient) -> None:
 
 def test_reject_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/reject'''
-    pass
+
+    # Future-proofing
+    def get_sample(min_id:int, max_id:int) -> tuple[int, str, dict]:
+        '''Helper that pulls a sample task based on database id (NOT index)'''
+        task_id = randint(min_id, max_id)
+        return task_id, f'/tasks/{task_id}/reject', TASK_DATA[task_id-1]
+
+    # Only task index 3 (id:4) is ready to be rejected (not approved/completed)
+    task_id, endpoint, sample_task = get_sample(4, 4)
+    assert database.session.get(Task, task_id).completed_at is not None
+    assert database.session.get(Task, task_id).approved_at is None
+
+    # Neither the accepter nor an unrelated user can reject a task
+    for user_index in [3, sample_task['accepted_by']-1]:
+        authenticate_user(credentials=USER_DATA[user_index], client=client)
+        response = client.post(endpoint)
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id).completed_at is not None
+
+    # Only the requester can reject it, which redirects to the task's page
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    assert_redirect(client.post(endpoint), redirect=f'/tasks/{task_id}')
+    assert database.session.get(Task, task_id).completed_at is None
+
+    # For approved tasks, no one may reject it
+    task_id, endpoint, sample_task = get_sample(1, 2)
+    completed_at = database.session.get(Task, task_id).completed_at
+    for test_user in USER_DATA:
+        authenticate_user(credentials=test_user, client=client)
+        response = client.post(endpoint)
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id).completed_at == completed_at
 
 def test_requested_by(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/requested/<user_id>'''
