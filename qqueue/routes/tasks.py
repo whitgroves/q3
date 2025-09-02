@@ -126,7 +126,7 @@ def delete_task(task_id:int) -> Response:
 def accept_task(task_id:int) -> Response:
     '''Allows `current_user` to claim an unclaimed task.'''
     task = database.session.get(Task, task_id)
-    if current_user.id == task.requested_by: abort(403)
+    if task.accepted_at or current_user.id == task.requested_by: abort(403)
     task.accepted_at = datetime.now()
     task.accepted_by = current_user.id
     database.session.commit()
@@ -138,7 +138,7 @@ def accept_task(task_id:int) -> Response:
 def release_task(task_id:int) -> Response:
     '''Allows `current_user` to release their claim on a task.'''
     task = database.session.get(Task, task_id)
-    if current_user.id != task.accepted_by: abort(403)
+    if task.completed_at or current_user.id != task.accepted_by: abort(403)
     task.accepted_at = None
     task.accepted_by = None
     database.session.commit()
@@ -150,7 +150,7 @@ def release_task(task_id:int) -> Response:
 def complete_task(task_id:int) -> Response:
     '''Allows the user matching `accepted_by` to mark a task complete.'''
     task = database.session.get(Task, task_id)
-    if current_user.id != task.accepted_by: abort(403)
+    if task.completed_at or current_user.id != task.accepted_by: abort(403)
     task.completed_at = datetime.now()
     database.session.commit()
     flash(f'Task "{task.summary}" marked as complete. Waiting on requester approval.') # pylint: disable=line-too-long
@@ -161,7 +161,7 @@ def complete_task(task_id:int) -> Response:
 def approve_task(task_id:int) -> Response:
     '''Allows the requester to confirm a task is complete.'''
     task = database.session.get(Task, task_id)
-    if current_user.id != task.requested_by: abort(403)
+    if task.approved_at or current_user.id != task.requested_by: abort(403)
     task.approved_at = datetime.now()
     database.session.commit()
     flash(f'Task "{task.summary}" approved. Payment to provider pending.')
@@ -172,7 +172,7 @@ def approve_task(task_id:int) -> Response:
 def reject_task(task_id:int) -> Response:
     '''Allows the requester to deny a task is complete, then re-open it.'''
     task = database.session.get(Task, task_id)
-    if current_user.id != task.requested_by: abort(403)
+    if task.approved_at or current_user.id != task.requested_by: abort(403)
     task.completed_at = None
     database.session.commit()
     flash(f'Task "{task.summary}" rejected. Please leave a comment explaining why.') # pylint: disable=line-too-long

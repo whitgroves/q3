@@ -23,7 +23,7 @@ TASK_DATA = [{'summary':f'Setup {i} laptops',
               'reward_amount':50.0*i,
               'reward_currency':f'USD{i}',
               'due_by':date.today()+timedelta(days=i), # nearest dates first
-              'requested_by':1}  # user0 (only tasks completed)
+              'requested_by':1}  # user0 (only tasks requested)
               for i in range(2, 13)]
 
 TASK_DATA[0]['accepted_by'] = 3  # user2 (task completed + approved)
