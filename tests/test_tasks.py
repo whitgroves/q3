@@ -472,25 +472,24 @@ def test_delete_task(client:FlaskClient) -> None:
 def test_accept_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/accept'''
     
-    #Future-proofing
+    # Future-proofing
     def get_sample(min_id:int, max_id:int) -> tuple[str, dict]:
         '''Helper that pulls a sample task based on database id (NOT index)'''
         task_id = randint(min_id, max_id)
         return task_id, f'/tasks/{task_id}/accept', TASK_DATA[task_id-1]
-    
+
     # The user that requested the task cannot accept it
     task_id, endpoint, sample_task = get_sample(5, len(TASK_DATA))
     authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
                       client=client)
     response = client.post(endpoint)
-    redirect = f'/tasks/{task_id}'
     assert response.status_code == 403
     assert database.session.get(Task, task_id).accepted_at is None
 
     # However, any other user can. We use either user1 or user3 since neither
     # has requested any tasks
     authenticate_user(credentials=USER_DATA[choice([1, 3])], client=client)
-    assert_redirect(response=client.post(endpoint), redirect=redirect)
+    assert_redirect(response=client.post(endpoint), redirect=f'/tasks/{task_id}')
     assert database.session.get(Task, task_id).accepted_at is not None
 
     # For an accepted/completed/approved task, the endpoint will fail for
@@ -505,7 +504,39 @@ def test_accept_task(client:FlaskClient) -> None:
 
 def test_release_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/release'''
-    pass
+    
+    # Future-proofing
+    def get_sample(min_id:int, max_id:int) -> tuple[str, dict]:
+        '''Helper that pulls a sample task based on database id (NOT index)'''
+        task_id = randint(min_id, max_id)
+        return task_id, f'/tasks/{task_id}/release', TASK_DATA[task_id-1]
+
+    # Only task index 2 (id:3) is accepted but not completed/approved
+    task_id, endpoint, sample_task = get_sample(3, 3)
+    assert database.session.get(Task, task_id).accepted_at is not None
+    assert database.session.get(Task, task_id).completed_at is None
+
+    # Neither the requester nor an unrelated user can release a task
+    for user_index in [3, sample_task['requested_by']-1]:
+        authenticate_user(credentials=USER_DATA[user_index], client=client)
+        response = client.post(endpoint)
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id).accepted_at is not None
+
+    # Only the accepter can release it, which redirects to the task's page
+    authenticate_user(credentials=USER_DATA[sample_task['accepted_by']-1],
+                      client=client)
+    assert_redirect(client.post(endpoint), redirect=f'/tasks/{task_id}')
+    assert database.session.get(Task, task_id).accepted_at is None
+
+    # For completed tasks, no one may release it
+    task_id, endpoint, sample_task = get_sample(1, 4)
+    accepted_at = database.session.get(Task, task_id).accepted_at
+    for test_user in USER_DATA:
+        authenticate_user(credentials=test_user, client=client)
+        response = client.post(endpoint)
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id).accepted_at == accepted_at
 
 def test_complete_task(client:FlaskClient) -> None:
     '''Tests the endpoint /tasks/<task_id>/complete'''
