@@ -7,13 +7,16 @@
             <p>{{ user.headline }}</p>
         </div>
         <div class="card-body">
-            <p>{{ user.bio }}</p>
+            {% if user.bio|length > 0 %}
+                <p>{{ user.bio }}</p>
+            {% else %}
+                <p><i>This user has not filled out their bio.</i></p>
+            {% endif %}
         </div>
         <div class="card-footer">
             <div class="row">
                 <div class="col">
-                    <a href="{{ url_for('tasks.requested_by', user_id=user.id)}}"><button type="submit" class="btn btn-primary">Open Requests</button></a>
-                    <a href="{{ url_for('tasks.accepted_by', user_id=user.id)}}"><button type="submit" class="btn btn-primary">Completed Orders</button></a>
+
                 </div>
                 <div class="col text-end">
                     <p class="card-text"><b>Joined:</b> {{ user.created_at }}</p>

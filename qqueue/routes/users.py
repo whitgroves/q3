@@ -40,6 +40,7 @@ def get_user(user_id:int) -> Response:
     if current_user.is_authenticated:
         data['user'] = display_format(user)
     else:
+        data['username'] = user.username
         data['has_requests'] = len(user.requests) > 0
         data['has_orders'] = len(user.orders) > 0
     return render_template('users/user.html', **data)

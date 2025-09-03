@@ -44,27 +44,26 @@ def test_get_user(client:FlaskClient) -> None: # pylint: disable=too-many-statem
         'both': 'This user is already making requests and fulfilling orders on qqueue.', # pylint: disable=line-too-long
         'neither': 'This user is already registered for qqueue.',
     }
-    task_link_text = ['Open Requests', 'Completed Orders']
     def endpoint(user_id:int) -> str:
         return f'/users/{user_id}'
+    sample_id = 4 # We use user3 (id: 4) since they lack requests and orders
 
     # If not logged in, get a recruitment message with their username
-    # We use user3 (id: 4) since they have neither requests nor orders
-    response = client.get(endpoint(4))
+    response = client.get(endpoint(sample_id))
     assert response.status_code == 200
     assert recruit_text['requests'] not in response.text
     assert recruit_text['orders'] not in response.text
     assert recruit_text['both'] not in response.text
     assert recruit_text['neither'] in response.text
     assert all(user['email'] not in response.text for user in USER_DATA)
-    assert all(user['username'] not in response.text for user in USER_DATA)
+    assert all(user['username'] not in response.text
+               for i, user in enumerate(USER_DATA) if i != sample_id-1)
     assert all(user['password'] not in response.text for user in USER_DATA)
-    assert all(text not in response.text for text in task_link_text)
 
     # Once logged in, username, tagline, and bio are visible for that user
     # and not any others.
     authenticate_user(credentials=USER_DATA[choice([0, 1, 2])], client=client)
-    response = client.get(endpoint(4))
+    response = client.get(endpoint(sample_id))
     assert response.status_code == 200
     assert recruit_text['requests'] not in response.text
     assert recruit_text['orders'] not in response.text
@@ -73,22 +72,20 @@ def test_get_user(client:FlaskClient) -> None: # pylint: disable=too-many-statem
     assert USER_DATA[3]['username'] in response.text
     assert USER_DATA[3]['headline'] in response.text
     assert USER_DATA[3]['bio'] in response.text
-    assert all(text in response.text for text in task_link_text)
     assert all(user['username'] not in response.text
-               for i, user in enumerate(USER_DATA) if i != 3)
+               for i, user in enumerate(USER_DATA) if i != sample_id-1)
     assert 'None' not in response.text
 
     # When logged in as that user, can see the same info + option to edit
     authenticate_user(credentials=USER_DATA[3], client=client)
-    response = client.get(endpoint(4))
+    response = client.get(endpoint(sample_id))
     assert response.status_code == 200
     assert USER_DATA[3]['username'] in response.text
     assert USER_DATA[3]['headline'] in response.text
     assert USER_DATA[3]['bio'] in response.text
     assert 'Edit Profile' in response.text
-    assert all(text in response.text for text in task_link_text)
     assert all(user['username'] not in response.text
-               for i, user in enumerate(USER_DATA) if i != 3)
+               for i, user in enumerate(USER_DATA) if i != sample_id-1)
     assert 'None' not in response.text
 
     # Logout, then check recruitment messages for...

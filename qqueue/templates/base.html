@@ -25,16 +25,16 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto nav-fill">
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('tasks.index') }}">open tasks</a>
-                </li>
-                <li class="'nav-link">
-                    <a class="nav-link" href="{{ url_for('tasks.new_task') }}">new task</a>
+                    <a class="nav-link" href="{{ url_for('main.about') }}">about</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('users.index') }}">users</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('main.about') }}">about</a>
+                    <a class="nav-link" href="{{ url_for('tasks.index') }}">tasks</a>
+                </li>
+                <li class="'nav-item">
+                    <a class="nav-link" href="{{ url_for('tasks.new_task') }}">new task</a>
                 </li>
             </ul>
             <ul class="navbar-nav">
@@ -44,10 +44,10 @@
                     </li>
                 {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.login') }}">login</a>
+                        <a class="nav-link" href="{{ url_for('auth.register') }}">register</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.register') }}">register</a>
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">login</a>
                     </li>
                 {% endif %}
             </ul>
