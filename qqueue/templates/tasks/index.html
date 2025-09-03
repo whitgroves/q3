@@ -5,24 +5,29 @@
     <h1>{% block title %} 📋 {% endblock %} Tasks</h1>
     <hr>
     {% if current_user.is_authenticated %}
+        <h3>My Tasks</h3>
         {% if accepted_tasks|length > 0 %}
-            <p>Here are the tasks you need to complete:</p>
+            <p>Complete each of these tasks before they're due.</p>
             {% for task in accepted_tasks %}
                 {{ display_task(task) }}    
             {% endfor %}
-            <hr>
+        {% else %}
+            <p>You have no outstanding tasks.</p>
         {% endif %}
+        <hr>
+        <h3>Pending Requests</h3>
         {% if requested_tasks|length > 0 %}
-            <p>Here are your open requests:</p>
+            <p>See which of your tasks others are working on.</p>
             {% for task in requested_tasks %}
                 {{ display_task(task) }}    
             {% endfor %}
         {% else %}
-            <p>You have no open requests at this time.</p>
+            <p>You have no open requests.</p>
         {% endif %}
         <hr>
+        <h3>Open Requests</h3>
         {% if open_tasks|length > 0 %}
-            <p>Here are these open requests from other users:</p>
+            <p>Accept and complete tasks for other users.</p>
             {% for task in open_tasks %}
                 {{ display_task(task) }}    
             {% endfor %}

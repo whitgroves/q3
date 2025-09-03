@@ -23,9 +23,12 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav">
+            <ul class="navbar-nav me-auto nav-fill">
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('tasks.index') }}">tasks</a>
+                    <a class="nav-link" href="{{ url_for('tasks.index') }}">open tasks</a>
+                </li>
+                <li class="'nav-link">
+                    <a class="nav-link" href="{{ url_for('tasks.new_task') }}">new task</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('users.index') }}">users</a>
@@ -33,6 +36,8 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('main.about') }}">about</a>
                 </li>
+            </ul>
+            <ul class="navbar-nav">
                 {% if current_user.is_authenticated %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('auth.logout') }}">logout</a>

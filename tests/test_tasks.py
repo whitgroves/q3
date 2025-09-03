@@ -16,7 +16,7 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
         '>Click here</a> to create a request.</p>',
     ]
     logged_in_with_tasks_text = [
-        '<p>Here are these open requests from other users:</p>'
+        '<p>Accept and complete tasks for other users.</p>',
     ]
     logged_out_with_tasks_text = [
         '>Register now</a> to view, create, and complete tasks like:</p>',
