@@ -24,7 +24,7 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
         '>Click here</a> to login.</p>',
     ]
     logged_in_no_tasks_text = [
-        '<p>There are no other open requests at this time.</p>',
+        '<p>There are no open requests at this time.</p>',
     ]
     logged_out_no_tasks_text = [
         '>Login</a> or <a href=',
@@ -186,29 +186,35 @@ def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statem
     # Future-proofing
     shared_text = [ # always visible
         '/comment',
-        '<button class="btn btn-primary">Leave a Comment</button>',
+        'class="btn btn-primary">Leave a Comment</a>',
     ]
     update_text = [
         '/edit',
-        '<button class="btn btn-primary">Edit Request</button></a>',
+        'class="btn btn-primary">Edit Request</a>',
         '/delete',
-        '<button class="btn btn-danger">Delete Task</button></form>',
+        '<button class="btn btn-danger" onclick="return confirm(\'Delete this task forever?\')">',
+        'Delete Request',
     ]
     accept_text = [
         '/accept',
-        '<button class="btn btn-success">Accept Request</button></form>',
+        '<button class="btn btn-success" onclick="return confirm(\'Accept this task as an active work order?\')">',
+        'Accept Request',
     ]
     provider_text = [
         '/complete',
-        '<button class="btn btn-success">Complete Order</button></form>',
+        '<button class="btn btn-success" onclick="return confirm(\'Send this order to the requester for approval?\')">',
+        'Complete Order',
         '/release',
-        '<button class="btn btn-warning">Release Task</button></form>',
+        '<button class="btn btn-warning" onclick="return confirm(\'Release this task back to the open requests pool?\')">',
+        'Release Task',
     ]
     approver_text = [
         '/approve',
-        '<button class="btn btn-primary">Approve Work</button></form>',
+        '<button class="btn btn-primary" onclick="return confirm(\'Approve this work and send payout?\')">',
+        'Approve Work',
         '/reject',
-        '<button class="btn btn-danger">Reject Order</button></form>',
+        '<button class="btn btn-danger" onclick="return confirm(\'Send this task back to the provider?\')">',
+        'Reject Order',
     ]
     display_fields = [
         'summary',

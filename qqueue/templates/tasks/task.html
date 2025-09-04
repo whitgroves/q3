@@ -12,28 +12,39 @@
                 {% if current_user.id == task.requested_by %}
                 <div class="row">
                     <div class="col-md-auto">
-                        <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}">
-                            <button class="btn btn-primary">Edit Request</button></a>
+                        <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" class="btn btn-primary">Edit Request</a>
                     </div>
                     <div class="col-md-auto">
                         <form method="POST" action="{{ url_for('tasks.delete_task', task_id=task.id) }}">
-                            <button class="btn btn-danger">Delete Task</button></form>
+                            <button class="btn btn-danger" onclick="return confirm('Delete this task forever?')">
+                                Delete Request
+                            </button>
+                        </form>
                     </div>
                 </div>
                 {% else %}
                     <form method="POST" action="{{ url_for('tasks.accept_task', task_id=task.id) }}">
-                        <button class="btn btn-success">Accept Request</button></form>
+                        <button class="btn btn-success" onclick="return confirm('Accept this task as an active work order?')">
+                            Accept Request
+                        </button>
+                    </form>
                 {% endif %}
             {% elif not task.completed_at %}
                 {% if current_user.id == task.accepted_by %}
                     <div class="row">
                         <div class="col-md-auto">
                             <form method="POST" action="{{ url_for('tasks.complete_task', task_id=task.id) }}">
-                                <button class="btn btn-success">Complete Order</button></form>
+                                <button class="btn btn-success" onclick="return confirm('Send this order to the requester for approval?')">
+                                    Complete Order
+                                </button>
+                            </form>
                         </div>
                         <div class="col-md-auto">
                             <form method="POST" action="{{ url_for('tasks.release_task', task_id=task.id) }}">
-                                <button class="btn btn-warning">Release Task</button></form>
+                                <button class="btn btn-warning" onclick="return confirm('Release this task back to the open requests pool?')">
+                                    Release Task
+                                </button>
+                            </form>
                         </div>
                     </div>
                 {% endif %}
@@ -42,19 +53,24 @@
                     <div class="row">
                         <div class="col-md-auto">
                             <form method="POST" action="{{ url_for('tasks.approve_task', task_id=task.id) }}">
-                                <button class="btn btn-primary">Approve Work</button></form>
+                                <button class="btn btn-primary" onclick="return confirm('Approve this work and send payout?')">
+                                    Approve Work
+                                </button>
+                            </form>
                         </div>
                         <div class="col-md-auto">
                             <form method="POST" action="{{ url_for('tasks.reject_task', task_id=task.id) }}">
-                                <button class="btn btn-danger">Reject Order</button></form>
+                                <button class="btn btn-danger" onclick="return confirm('Send this task back to the provider?')">
+                                    Reject Order
+                                </button>
+                            </form>
                         </div>
                     </div>
                 {% endif %}
             {% endif %}
         </div>
         <div class="col text-end">
-            <a href="{{ url_for('tasks.new_comment', task_id=task.id) }}">
-                <button class="btn btn-primary">Leave a Comment</button></a>
+            <a href="{{ url_for('tasks.new_comment', task_id=task.id) }}" class="btn btn-primary">Leave a Comment</a>
         </div>
     </div>
     <hr>
@@ -64,7 +80,7 @@
             <div class="card" style="margin: 8px 0px">
                 <div class="card-header">
                     <p class="card-text">
-                        <i>At {{ comment.created_at }} <a href="">{{ comment.user.username }}</a> said:</i>
+                        <i>At {{ comment.created_at }} <a href="{{ url_for('users.get_user', user_id=comment.created_by)}}">{{ comment.user.username }}</a> said:</i>
                     </p>
                 </div>
                 <div class="card-body">
@@ -89,6 +105,6 @@
         {% endfor %}
         <p>Need to clarify something? <a href="">Click here</a> to leave a comment.</p>
     {% else %}
-        <p>This task doesn't have any comments, but you can <a href="">click here</a> to create the first one.</p>
+        <p>This task doesn't have any comments, but you can <a href="{{ url_for('tasks.new_comment', task_id=task.id) }}">click here</a> to create the first one.</p>
     {% endif %}
 {% endblock %}

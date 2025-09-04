@@ -15,14 +15,14 @@
             <p>You have no outstanding tasks.</p>
         {% endif %}
         <hr>
-        <h3>Pending Requests</h3>
+        <h3>Pending Orders</h3>
         {% if requested_tasks|length > 0 %}
             <p>See which of your tasks others are working on.</p>
             {% for task in requested_tasks %}
                 {{ display_task(task) }}    
             {% endfor %}
         {% else %}
-            <p>You have no open requests.</p>
+            <p>You have no orders being worked on right now.</p>
         {% endif %}
         <hr>
         <h3>Open Requests</h3>
@@ -32,7 +32,7 @@
                 {{ display_task(task) }}    
             {% endfor %}
         {% else %}
-            <p>There are no other open requests at this time.</p>
+            <p>There are no open requests at this time.</p>
         {% endif %}
         <hr>
         <p>Need a task done? <a href="{{ url_for('tasks.new_task') }}">Click here</a> to create a request.</p>
