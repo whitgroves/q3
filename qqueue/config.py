@@ -32,7 +32,7 @@ class TestConfig(BaseConfig): # pylint: disable=too-few-public-methods
 
 class ProdConfig(BaseConfig): # pylint: disable=too-few-public-methods
     '''Configuration for deployed (AWS) instances of the app.'''
-    SECRET_KEY = os.environ.get('QQ_SECRET_KEY')
+    SECRET_KEY = os.environ.get('QQ_SECRET_KEY') or token_hex(32)
     SQLALCHEMY_DATABASE_URI = os.environ.get('QQ_DATABASE_URI') or \
         SQLITE_PREFIX + os.path.join(DATABASE_DIR, 'qqueue.db')
 
