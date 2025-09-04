@@ -62,7 +62,8 @@ def test_get_user(client:FlaskClient) -> None: # pylint: disable=too-many-statem
 
     # Once logged in, username, tagline, and bio are visible for that user
     # and not any others.
-    authenticate_user(credentials=USER_DATA[choice([0, 1, 2])], client=client)
+    sample_user = USER_DATA[choice([0, 1, 2])]
+    authenticate_user(credentials=sample_user, client=client)
     response = client.get(endpoint(sample_id))
     assert response.status_code == 200
     assert recruit_text['requests'] not in response.text
@@ -72,8 +73,9 @@ def test_get_user(client:FlaskClient) -> None: # pylint: disable=too-many-statem
     assert USER_DATA[3]['username'] in response.text
     assert USER_DATA[3]['headline'] in response.text
     assert USER_DATA[3]['bio'] in response.text
-    assert all(user['username'] not in response.text
-               for i, user in enumerate(USER_DATA) if i != sample_id-1)
+    for i, user in enumerate(USER_DATA):
+        if i != sample_id-1 and user['username'] != sample_user['username']:
+            assert user['username'] not in response.text
     assert 'None' not in response.text
 
     # When logged in as that user, can see the same info + option to edit

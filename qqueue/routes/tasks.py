@@ -188,14 +188,14 @@ def reject_task(task_id:int) -> Response:
     flash(f'Task "{task.summary}" rejected. Please leave a comment explaining why.') # pylint: disable=line-too-long
     return redirect(url_for('tasks.get_task', task_id=task.id))
 
-@blueprint.route('/requested/<int:user_id>')
+@blueprint.route('/requested')
 def requested_by(user_id:int) -> Response:
-    '''Returns all of the open tasks requested by `user_id`.'''
+    '''Returns all of the open tasks requested by the current user.'''
     pass
 
-@blueprint.route('/accepted/<int:user_id>')
+@blueprint.route('/accepted')
 def accepted_by(user_id:int) -> Response:
-    '''Returns all of `user_id`'s accepted tasks related to current_user.'''
+    '''Returns all tasks accepted by the current user.'''
     pass
 
 @blueprint.route('/<int:task_id>/comments/new')
