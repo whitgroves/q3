@@ -57,4 +57,38 @@
                 <button class="btn btn-primary">Leave a Comment</button></a>
         </div>
     </div>
+    <hr>
+    <h3>Comments:</h3>
+    {% if task.comments|length > 0 %}
+        {% for comment in task.comments %}
+            <div class="card" style="margin: 8px 0px">
+                <div class="card-header">
+                    <p class="card-text">
+                        <i>At {{ comment.created_at }} <a href="">{{ comment.user.username }}</a> said:</i>
+                    </p>
+                </div>
+                <div class="card-body">
+                    <p class="card-text"> {{ comment.text }}</p>
+                </div>
+                {% if current_user.id == comment.user.id %}
+                    <div class="container">
+                        <div class="row row-cols-auto">
+                            <div class="col">
+                                <a href="" class="btn btn-warning btn-sm">Edit Comment</a>
+                            </div>
+                            <div class="col">
+                                <form method="post" action="">
+                                    <button type="submit" class="btn btn-danger btn-sm"
+                                        onclick="return confirm('Delete comment forever?')">Delete Comment</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+        <p>Need to clarify something? <a href="">Click here</a> to leave a comment.</p>
+    {% else %}
+        <p>This task doesn't have any comments, but you can <a href="">click here</a> to create the first one.</p>
+    {% endif %}
 {% endblock %}

@@ -50,11 +50,34 @@ TASK_DATA[3]['completed_at'] = date.today()
 USER_DATA[3]['headline'] = '3rd rock'
 USER_DATA[3]['bio'] = 'Most definitely not an extraterrestrial'
 
-# Comments are simple, they just belong to the task creator
-COMMENT_DATA = [{'task_id':i+1,
-                 'created_by':task['requested_by'],
-                 'text':f'test {i}{i+1}{i+2}'} 
-                 for i, task in enumerate(TASK_DATA)]
+# Each task will have at least 1 comment by the requester, plus another
+# for each stage it has moved through (accepted, completed, approved)
+COMMENT_DATA = []
+for i, task in enumerate(TASK_DATA):
+    task_id = i + 1
+    COMMENT_DATA.append({
+        'task_id': task_id,
+        'created_by': task['requested_by'],
+        'text': f'Requesting assistance for task{task_id}.',
+    })
+    if 'accepted_at' in task:
+        COMMENT_DATA.append({
+            'task_id': task_id,
+            'created_by': task['accepted_by'],
+            'text': f'I will complete task{task_id}',
+        })
+    if 'completed_at' in task:
+        COMMENT_DATA.append({
+            'task_id': task_id,
+            'created_by': task['accepted_by'],
+            'text': f'I have completed task{task_id}',
+        })
+    if 'approved_at' in task:
+        COMMENT_DATA.append({
+            'task_id': task_id,
+            'created_by': task['requested_by'],
+            'text': f'I approve the work on task{task_id}',
+        })
 
 @fixture()
 def application() -> Flask: # pyright: ignore[reportInvalidTypeForm]

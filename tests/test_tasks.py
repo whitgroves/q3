@@ -3,7 +3,7 @@
 from random import choice, randint
 from flask import g # globals - needed for CSRF token
 from flask.testing import FlaskClient
-from tests.conftest import USER_DATA, TASK_DATA, Task, date, timedelta, authenticate_user, assert_redirect, database
+from tests.conftest import USER_DATA, TASK_DATA, COMMENT_DATA, Task, date, timedelta, authenticate_user, assert_redirect, database
 from qqueue.config import ACCEPTED_CURRENCIES
 
 def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statements
@@ -218,13 +218,13 @@ def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statem
         'due_by',
         'requested_by'
     ]
-    def get_sample(min_id:int, max_id:int) -> tuple[str, dict]:
+    def get_sample(min_id:int, max_id:int) -> tuple[int, str, dict]:
         '''Helper that pulls a sample task based on database id (NOT index)'''
         task_id = randint(min_id, max_id)
-        return f'/tasks/{task_id}', TASK_DATA[task_id-1]
+        return task_id, f'/tasks/{task_id}', TASK_DATA[task_id-1]
 
     # The first sample is any of the non-accepted tasks in the test data
-    endpoint, sample_task = get_sample(5, len(TASK_DATA))
+    sample_id, endpoint, sample_task = get_sample(5, len(TASK_DATA))
 
     # Accessing while logged out redirects to login
     assert_redirect(client.get(endpoint))
@@ -242,6 +242,11 @@ def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statem
     assert all(text in response.text for text in accept_text)
     assert all(text not in response.text for text in provider_text)
     assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
 
     # The requester of the task should be able to see edit, delete, and comment,
     # but not to accept the task themselves
@@ -256,10 +261,15 @@ def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statem
     assert all(text not in response.text for text in accept_text)
     assert all(text not in response.text for text in provider_text)
     assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
 
     # For an accepted task, the requester should not see edit/delete options,
     # but only have the option to leave a comment...
-    endpoint, sample_task = get_sample(3, 3)
+    sample_id, endpoint, sample_task = get_sample(3, 3)
     authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
                       client=client)
     response = client.get(endpoint)
@@ -271,6 +281,11 @@ def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statem
     assert all(text not in response.text for text in accept_text)
     assert all(text not in response.text for text in provider_text)
     assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
 
     # ...the provider should not see edit/delete options,
     # but have the options to leave a comment, release, or complete the task...
@@ -285,6 +300,11 @@ def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statem
     assert all(text not in response.text for text in accept_text)
     assert all(text in response.text for text in provider_text)
     assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
 
     # ...and unrelated users should get redirected to the tasks index.
     authenticate_user(credentials=USER_DATA[3], client=client)
@@ -292,7 +312,7 @@ def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statem
 
     # For accepted and completed tasks, the provider should only see the option
     # to comment...
-    endpoint, sample_task = get_sample(4, 4)
+    sample_id, endpoint, sample_task = get_sample(4, 4)
     authenticate_user(credentials=USER_DATA[sample_task['accepted_by']-1],
                       client=client)
     response = client.get(endpoint)
@@ -304,6 +324,11 @@ def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statem
     assert all(text not in response.text for text in accept_text)
     assert all(text not in response.text for text in provider_text)
     assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
 
     # ...the requester should have options to comment/approve/reject...
     authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
@@ -317,6 +342,11 @@ def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statem
     assert all(text not in response.text for text in accept_text)
     assert all(text not in response.text for text in provider_text)
     assert all(text in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
 
     # ...and unrelated users should get redirected to the tasks index.
     authenticate_user(credentials=USER_DATA[3], client=client)
@@ -324,7 +354,7 @@ def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statem
 
     # Once approved, the only option available for providers and requesters
     # is to leave a comment; all other users get redirected.
-    endpoint, sample_task = get_sample(1, 2)
+    sample_id, endpoint, sample_task = get_sample(1, 2)
     authenticate_user(credentials=USER_DATA[sample_task['accepted_by']-1],
                       client=client)
     response = client.get(endpoint)
@@ -336,6 +366,11 @@ def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statem
     assert all(text not in response.text for text in accept_text)
     assert all(text not in response.text for text in provider_text)
     assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
 
     authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
                       client=client)
@@ -348,6 +383,11 @@ def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statem
     assert all(text not in response.text for text in accept_text)
     assert all(text not in response.text for text in provider_text)
     assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
 
     authenticate_user(credentials=USER_DATA[3], client=client)
     assert_redirect(client.get(endpoint), redirect='/tasks')
@@ -651,3 +691,16 @@ def test_reject_task(client:FlaskClient) -> None:
         response = client.post(endpoint)
         assert response.status_code == 403
         assert database.session.get(Task, task_id).completed_at == completed_at
+
+def test_add_comment(client:FlaskClient) -> None:
+    '''Tests /tasks/<task_id>/comment/new'''
+    pass
+
+def test_edit_comment(client:FlaskClient) -> None:
+    '''Tests /tasks/<task_id>/comment/edit'''
+    pass
+
+def test_delete_comment(client:FlaskClient) -> None:
+    '''Tests /tasks/<task_id>/comment/delete'''
+    pass
+
