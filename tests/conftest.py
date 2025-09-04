@@ -32,7 +32,7 @@ TASK_DATA[0]['completed_at'] = date.today()-timedelta(1)
 TASK_DATA[0]['approved_at'] = date.today()
 
 TASK_DATA[1]['requested_by'] = 3 # user2 (task completed + approved)
-TASK_DATA[1]['accepted_by'] = 2  # user1 (only task approved)
+TASK_DATA[1]['accepted_by'] = 2  # user1 (only tasks accepted)
 TASK_DATA[1]['accepted_at'] = date.today()-timedelta(1)
 TASK_DATA[1]['completed_at'] = date.today()
 TASK_DATA[1]['approved_at'] = date.today()

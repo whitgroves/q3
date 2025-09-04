@@ -39,6 +39,12 @@ def get_user(user_id:int) -> Response:
     user = database.session.get(User, user_id)
     if current_user.is_authenticated:
         data['user'] = display_format(user)
+        data['requests'] = [request for request in user.requests
+                            if request.accepted_at == None]
+        data['orders'] = [order for order in user.orders
+                          if (order.requested_by == current_user.id or
+                           order.accepted_by == current_user.id) and
+                           order.completed_at == None]
     else:
         data['username'] = user.username
         data['has_requests'] = len(user.requests) > 0
