@@ -5,8 +5,8 @@ Task routes for qqueue. Includes:
 from datetime import date, datetime
 from flask import Blueprint, Response, request, render_template, flash, redirect, url_for, abort, current_app
 from flask_login import login_required, current_user
-from qqueue.forms import TaskForm
-from qqueue.models import Task, User
+from qqueue.forms import TaskForm, CommentForm
+from qqueue.models import Task, Comment
 from qqueue.extensions import database, endpoint_exception
 
 blueprint = Blueprint('tasks', __name__)
@@ -188,17 +188,27 @@ def reject_task(task_id:int) -> Response:
     flash(f'Task "{task.summary}" rejected. Please leave a comment explaining why.') # pylint: disable=line-too-long
     return redirect(url_for('tasks.get_task', task_id=task.id))
 
-@blueprint.route('/<int:task_id>/comments/new')
+@blueprint.post('/<int:task_id>/comments/new')
 @login_required
 def new_comment(task_id:int) -> Response:
     '''Leaves a new comment on a task.'''
-    pass
-
-@blueprint.route('/<int:task_id>/comments')
-@login_required
-def get_comments(task_id:int) -> Response:
-    '''Retreives all the comments for a task.'''
-    pass
+    task = database.session.get(Task, task_id)
+    if task.accepted_at is not None:
+        if current_user.id not in [task.accepted_by, task.requested_by]:
+            abort(403)
+    form = CommentForm()
+    text = form.text.data
+    if form.validate_on_submit():
+        comment = Comment(task_id=task_id,
+                          created_by=current_user.id,
+                          text=text)
+        database.session.add(comment)
+        database.session.commit()
+        message = f'{comment.user.username} left a new comment.'
+        current_app.logger.info(msg=message)
+        flash(message=message)
+        return redirect(url_for('tasks.get_task', task_id=task_id))
+    abort(403)
 
 @blueprint.route('/comments/<int:comment_id>')
 @login_required

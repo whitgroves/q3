@@ -53,3 +53,8 @@ class TaskForm(FlaskForm):
                                   choices=ACCEPTED_CURRENCIES,
                                   validators=[DataRequired()])
     due_by = DateField('Due By', validators=[DataRequired()])
+
+
+# comment
+class CommentForm(FlaskForm):
+    text = TextAreaField('Text', validators=[DataRequired()])

@@ -699,8 +699,55 @@ def test_reject_task(client:FlaskClient) -> None:
         assert database.session.get(Task, task_id).completed_at == completed_at
 
 def test_add_comment(client:FlaskClient) -> None:
-    '''Tests /tasks/<task_id>/comment/new'''
-    pass
+    '''Tests /tasks/<task_id>/comments/new'''
+
+    # Future-proofing
+    sample_task_id = randint(5, len(TASK_DATA))
+    def create_endpoint(task_id:int) -> str:
+        return f'/tasks/{task_id}/comments/new'
+
+    # If a task is open, anyone can leave a comment, which will redirect
+    # to the task page with it displayed
+    for i, user in enumerate(USER_DATA):
+        authenticate_user(credentials=user, client=client)
+        data = {'created_by': i+1, 'text': f'Comment #{i}'}
+        endpoint = create_endpoint(sample_task_id)
+        response = client.post(endpoint, data=data)
+        assert response.status_code == 403 # CSRF token must be present
+        data['csrf_token'] = g.csrf_token
+        response = client.post(endpoint, data=data, follow_redirects=True)
+        assert response.status_code == 200
+        assert response.request.path == endpoint.replace('/comments/new', '')
+        assert data['text'] in response.text
+
+    # Once acccepted, only the requester and accepter can comment; anyone else
+    # gets a 403
+    sample_task_id = randint(1, 4)
+    sample_task = TASK_DATA[sample_task_id-1]
+    for i, user in enumerate(USER_DATA):
+        authenticate_user(credentials=user, client=client)
+        data = {'csrf_token': g.csrf_token,
+                'created_by': i+1,
+                'text': f'Comment #{i}00'}
+        endpoint = create_endpoint(sample_task_id)
+        response = client.post(endpoint, data=data, follow_redirects=True)
+        if i+1 in [sample_task['requested_by'], sample_task['accepted_by']]:
+            assert response.status_code == 200
+            assert response.request.path == endpoint.replace('/comments/new', '') # pylint: disable=line-too-long
+            assert data['text'] in response.text
+        else:
+            assert response.status_code == 403
+
+    # If logged out, no one may comment; all requests redirect to login
+    client.get('/logout')
+    for i, task in enumerate(TASK_DATA):
+        data = {'csrf_token': g.csrf_token,
+                'created_by': randint(1, len(USER_DATA)),
+                'text': f'Invalid comment.'}
+        endpoint = create_endpoint(i+1)
+        response = client.post(endpoint, data=data, follow_redirects=True)
+        assert response.status_code == 200
+        assert response.request.path == '/login'
 
 def test_edit_comment(client:FlaskClient) -> None:
     '''Tests /tasks/<task_id>/comment/edit'''
