@@ -16,7 +16,7 @@
         <h3>Open Requests:</h3>
         {% if requests|length > 0 %}
             {% for task in requests %}
-                {{ display_task(task) }}
+                {{ display_task(task, True) }}
             {% endfor %}
         {% else %}
             <p><i>User has no open requests.</i></p>

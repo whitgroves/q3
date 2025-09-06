@@ -73,9 +73,9 @@
             <a href="{{ url_for('tasks.new_comment', task_id=task.id) }}" class="btn btn-primary">Leave a Comment</a>
         </div>
     </div>
-    <hr>
-    <h3>Comments:</h3>
     {% if task.comments|length > 0 %}
+        <hr>
+        <h3>Comments:</h3>
         {% for comment in task.comments %}
             <div class="card" style="margin: 8px 0px">
                 <div class="card-header">
@@ -87,24 +87,27 @@
                     <p class="card-text"> {{ comment.text }}</p>
                 </div>
                 {% if current_user.id == comment.user.id %}
-                    <div class="container">
-                        <div class="row row-cols-auto">
-                            <div class="col">
-                                <a href="" class="btn btn-warning btn-sm">Edit Comment</a>
-                            </div>
-                            <div class="col">
-                                <form method="post" action="">
-                                    <button type="submit" class="btn btn-danger btn-sm"
-                                        onclick="return confirm('Delete comment forever?')">Delete Comment</button>
-                                </form>
-                            </div>
-                        </div>
+                    <div class="card-footer">
+                        <form method="post" action="{{ url_for('tasks.delete_comment', comment_id=comment.id) }}">
+                            <button type="submit" class="btn btn-danger btn-sm"
+                                onclick="return confirm('Delete comment forever?')">Delete</button>
+                        </form>
                     </div>
                 {% endif %}
             </div>
         {% endfor %}
-        <p>Need to clarify something? <a href="">Click here</a> to leave a comment.</p>
-    {% else %}
-        <p>This task doesn't have any comments, but you can <a href="{{ url_for('tasks.new_comment', task_id=task.id) }}">click here</a> to create the first one.</p>
     {% endif %}
+    <hr>
+    <h4>New Comment:</h4>
+    <div class="card" style="margin: 8px 0px">
+        <form method="post" action="{{ url_for('tasks.new_comment', task_id=task.id) }}">
+            {{ form.csrf_token }}
+            <div class="card-body">
+                <textarea class="form-control" id="text" name="text"></textarea>
+            </div>
+            <div class="card-footer">
+                <button type="submit" class="btn btn-primary btn-sm">Add Comment</button>
+            </div>
+        </form>
+    </div>
 {% endblock %}

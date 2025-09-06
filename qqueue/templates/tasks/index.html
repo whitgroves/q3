@@ -19,7 +19,7 @@
         {% if requested_tasks|length > 0 %}
             <p>See which of your tasks others are working on.</p>
             {% for task in requested_tasks %}
-                {{ display_task(task) }}    
+                {{ display_task(task, True) }}    
             {% endfor %}
         {% else %}
             <p>You have no orders being worked on right now.</p>

@@ -20,12 +20,12 @@ def index() -> Response:
         data['requested_tasks'] = []
         data['accepted_tasks'] = []
         for task in tasks:
-            if task.accepted_at is None:
-                data['open_tasks'].append(task)
-            elif task.requested_by == current_user.id:
-                data['requested_tasks'].append(task)
+            if task.requested_by == current_user.id:
+                if task.accepted_at is not None: data['requested_tasks'].append(task)
             elif task.accepted_by == current_user.id:
                 data['accepted_tasks'].append(task)
+            elif task.accepted_at is None:
+                data['open_tasks'].append(task)
     else:
         tasks = Task.query.filter(Task.accepted_at == None).order_by(Task.due_by).all()
         data['summaries'] = [task.summary for task in tasks[:5]]
@@ -73,7 +73,7 @@ def get_task(task_id:int) -> Response:
     task = Task.query.filter(Task.id == task_id).first_or_404()
     if task.accepted_by and current_user.id not in [task.accepted_by, task.requested_by]: # pylint disable=line-too-long
         return redirect(url_for('tasks.index'))
-    return render_template('tasks/task.html', task=task)
+    return render_template('tasks/task.html', task=task, form=CommentForm())
 
 @blueprint.route('/<int:task_id>/edit', methods=('GET', 'POST'))
 @login_required
@@ -193,8 +193,8 @@ def reject_task(task_id:int) -> Response:
 def new_comment(task_id:int) -> Response:
     '''Leaves a new comment on a task.'''
     task = database.session.get(Task, task_id)
-    if task.accepted_at is not None:
-        if current_user.id not in [task.accepted_by, task.requested_by]:
+    if task.accepted_at is not None and\
+        current_user.id not in [task.accepted_by, task.requested_by]:
             abort(403)
     form = CommentForm()
     text = form.text.data
@@ -210,20 +210,33 @@ def new_comment(task_id:int) -> Response:
         return redirect(url_for('tasks.get_task', task_id=task_id))
     abort(403)
 
-@blueprint.route('/comments/<int:comment_id>')
-@login_required
-def get_comment(comment_id:int) -> Response:
-    '''Gets a singular comment outside of the task's context.'''
-    pass
-
 @blueprint.route('/comments/<int:comment_id>/edit', methods=('GET', 'POST'))
 @login_required
 def edit_comment(comment_id:int) -> Response:
     '''Endpoint that handles task comment updates.'''
-    pass
+    comment = database.session.get(Comment, comment_id)
+    if not comment or current_user.id != comment.created_by: abort(403)
+    form = CommentForm()
+    text = form.text.data
+    if form.validate_on_submit():
+        comment.text = text
+        database.session.add(comment)
+        database.session.commit()
+        message = f'Comment #{comment.id} updated successfully.'
+        current_app.logger.info(msg=message)
+        flash(message=message)
+        return redirect(url_for('tasks.get_task', task_id=comment.task_id))
+    abort(403)
 
-@blueprint.post('/comments/<int:commend_id>/delete')
+@blueprint.post('/comments/<int:comment_id>/delete')
 @login_required
 def delete_comment(comment_id:int) -> Response:
     '''Deletes the specified comment, if it exists.'''
-    pass
+    comment = database.session.get(Comment, comment_id)
+    if not comment or current_user.id != comment.created_by: abort(403)
+    database.session.delete(comment)
+    database.session.commit()
+    message = f'Comment #{comment.id} permanently deleted.'
+    current_app.logger.info(msg=message)
+    flash(message=message)
+    return redirect(url_for('tasks.get_task', task_id=comment.task_id))

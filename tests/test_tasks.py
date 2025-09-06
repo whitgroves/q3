@@ -5,6 +5,7 @@ from flask import g # globals - needed for CSRF token
 from flask.testing import FlaskClient
 from tests.conftest import USER_DATA, TASK_DATA, COMMENT_DATA, Task, date, timedelta, authenticate_user, assert_redirect, database
 from qqueue.config import ACCEPTED_CURRENCIES
+from qqueue.models import Comment
 
 def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statements
     '''Tests the endpoint /tasks'''
@@ -56,14 +57,13 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
 
     # But when logged in, summaries, details, requester, due date, and rewards
     # should be visible for all unclaimed tasks in the system or for any tasks
-    # related to the user (they are requester or accepter)
+    # they've created
     user_id = randint(1, 3)
     authenticate_user(credentials=USER_DATA[user_id-1], client=client)
     response = client.get(endpoint)
     assert response.status_code == 200
     for task in TASK_DATA:
-        if 'accepted_at' not in task or\
-            (user_id in [task['accepted_by'], task['requested_by']] and 'completed_at' not in task): # pylint: disable=line-too-long
+        if 'completed_at' not in task and (task['requested_by'] == user_id or 'accepted_at' not in task or task['accepted_by'] == user_id): # pylint: disable=line-too-long
             assert task['summary'] in response.text
             assert task['detail'] in response.text
             assert str(task['reward_amount']) in response.text
@@ -185,34 +185,26 @@ def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statem
 
     # Future-proofing
     shared_text = [ # always visible
-        '/comment',
-        'class="btn btn-primary">Leave a Comment</a>',
+        '<button type="submit" class="btn btn-primary btn-sm">Add Comment</button>',
     ]
     update_text = [
-        '/edit',
         'class="btn btn-primary">Edit Request</a>',
-        '/delete',
         '<button class="btn btn-danger" onclick="return confirm(\'Delete this task forever?\')">',
         'Delete Request',
     ]
     accept_text = [
-        '/accept',
         '<button class="btn btn-success" onclick="return confirm(\'Accept this task as an active work order?\')">',
         'Accept Request',
     ]
     provider_text = [
-        '/complete',
         '<button class="btn btn-success" onclick="return confirm(\'Send this order to the requester for approval?\')">',
         'Complete Order',
-        '/release',
         '<button class="btn btn-warning" onclick="return confirm(\'Release this task back to the open requests pool?\')">',
         'Release Task',
     ]
     approver_text = [
-        '/approve',
         '<button class="btn btn-primary" onclick="return confirm(\'Approve this work and send payout?\')">',
         'Approve Work',
-        '/reject',
         '<button class="btn btn-danger" onclick="return confirm(\'Send this task back to the provider?\')">',
         'Reject Order',
     ]
@@ -702,58 +694,124 @@ def test_add_comment(client:FlaskClient) -> None:
     '''Tests /tasks/<task_id>/comments/new'''
 
     # Future-proofing
-    sample_task_id = randint(5, len(TASK_DATA))
-    def create_endpoint(task_id:int) -> str:
-        return f'/tasks/{task_id}/comments/new'
+    def create_endpoint(task_id:int) -> tuple[str, str]:
+        return f'/tasks/{task_id}/comments/new', f'/tasks/{task_id}'
 
     # If a task is open, anyone can leave a comment, which will redirect
     # to the task page with it displayed
+    endpoint, redirect = create_endpoint(randint(5, len(TASK_DATA)))
     for i, user in enumerate(USER_DATA):
         authenticate_user(credentials=user, client=client)
         data = {'created_by': i+1, 'text': f'Comment #{i}'}
-        endpoint = create_endpoint(sample_task_id)
         response = client.post(endpoint, data=data)
         assert response.status_code == 403 # CSRF token must be present
         data['csrf_token'] = g.csrf_token
         response = client.post(endpoint, data=data, follow_redirects=True)
         assert response.status_code == 200
-        assert response.request.path == endpoint.replace('/comments/new', '')
+        assert response.request.path == redirect
         assert data['text'] in response.text
 
     # Once acccepted, only the requester and accepter can comment; anyone else
     # gets a 403
     sample_task_id = randint(1, 4)
     sample_task = TASK_DATA[sample_task_id-1]
+    endpoint, redirect = create_endpoint(sample_task_id)
     for i, user in enumerate(USER_DATA):
         authenticate_user(credentials=user, client=client)
         data = {'csrf_token': g.csrf_token,
                 'created_by': i+1,
                 'text': f'Comment #{i}00'}
-        endpoint = create_endpoint(sample_task_id)
         response = client.post(endpoint, data=data, follow_redirects=True)
         if i+1 in [sample_task['requested_by'], sample_task['accepted_by']]:
             assert response.status_code == 200
-            assert response.request.path == endpoint.replace('/comments/new', '') # pylint: disable=line-too-long
+            assert response.request.path == redirect
             assert data['text'] in response.text
         else:
             assert response.status_code == 403
 
-    # If logged out, no one may comment; all requests redirect to login
+    # If logged out, no one may comment; any requests redirect to login
     client.get('/logout')
-    for i, task in enumerate(TASK_DATA):
-        data = {'csrf_token': g.csrf_token,
-                'created_by': randint(1, len(USER_DATA)),
-                'text': f'Invalid comment.'}
-        endpoint = create_endpoint(i+1)
-        response = client.post(endpoint, data=data, follow_redirects=True)
-        assert response.status_code == 200
-        assert response.request.path == '/login'
+    data = {'csrf_token': g.csrf_token,
+            'created_by': randint(1, len(USER_DATA)),
+            'text': f'Invalid comment.'}
+    response = client.post(endpoint, data=data, follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == '/login'
 
 def test_edit_comment(client:FlaskClient) -> None:
-    '''Tests /tasks/<task_id>/comment/edit'''
-    pass
+    '''Tests /tasks/comments/<comment_id>/edit'''
+
+    # Future-proofing
+    def create_endpoint(comment_id:int) -> tuple[str, str]:
+        return f'/tasks/comments/{comment_id}/edit',\
+               f'/tasks/{COMMENT_DATA[comment_id-1]["task_id"]}'
+
+    # A comment can be edited at any time by the user that wrote it
+    sample_comment_id = randint(1, len(COMMENT_DATA))
+    sample_user_id = COMMENT_DATA[sample_comment_id-1]['created_by']
+    authenticate_user(credentials=USER_DATA[sample_user_id-1], client=client)
+    endpoint, redirect = create_endpoint(sample_comment_id)
+    data = {'text': 'this is the updated comment text.'}
+    response = client.post(endpoint, data=data)
+    assert response.status_code == 403 # forbidden without CSRF token
+    data['csrf_token'] = g.csrf_token
+    response = client.post(endpoint, data=data, follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == redirect
+    assert data['text'] in response.text
+
+    # Users can never edit comments they didn't author
+    # We test by rolling for a random user until we get one that isn't the
+    # author of the sample comment
+    while sample_user_id == COMMENT_DATA[sample_comment_id-1]['created_by']:
+        sample_user_id = randint(1, len(USER_DATA))
+    authenticate_user(credentials=USER_DATA[sample_user_id-1], client=client)
+    data['text'] = 'this is an invalid update from the wrong user.'
+    response = client.post(endpoint, data=data, follow_redirects=True)
+    assert response.status_code == 403
+    assert data['text'] not in client.get(redirect).text
+
+    # And comments can never be edited while logged out; attempting to do so
+    # redirects to login without updating the text
+    client.get('/logout')
+    response = client.post(endpoint, data=data, follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == '/login'
 
 def test_delete_comment(client:FlaskClient) -> None:
-    '''Tests /tasks/<task_id>/comment/delete'''
-    pass
+    '''Tests /tasks/comments/<comment_id>/delete'''
 
+    # Future-proofing
+    def create_endpoint(comment_id:int)-> tuple[str, str]:
+        return f'/tasks/comments/{comment_id}/delete',\
+               f'/tasks/{COMMENT_DATA[comment_id-1]["task_id"]}'
+
+    # A comment can be deleted at any time by the user that wrote it
+    sample_comment_id = randint(1, len(COMMENT_DATA))
+    sample_comment = COMMENT_DATA[sample_comment_id-1]
+    sample_user_id = sample_comment['created_by']
+    authenticate_user(credentials=USER_DATA[sample_user_id-1], client=client)
+    endpoint, redirect = create_endpoint(sample_comment_id)
+    response = client.post(endpoint, follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == redirect
+    assert sample_comment['text'] not in client.get(redirect).text
+    assert database.session.get(Comment, sample_comment_id) is None
+
+    # Users can never delete comments they didn't author
+    deleted_sample_id = sample_comment_id
+    while sample_comment_id == deleted_sample_id:
+        sample_comment_id = randint(1, len(COMMENT_DATA))
+    sample_comment = COMMENT_DATA[sample_comment_id-1]
+    while sample_user_id == sample_comment['created_by']:
+        sample_user_id = randint(1, len(USER_DATA))
+    authenticate_user(credentials=USER_DATA[sample_user_id-1], client=client)
+    response = client.post(endpoint, follow_redirects=True)
+    assert response.status_code == 403
+    assert database.session.get(Comment, sample_comment_id) is not None
+
+    # And comments can never be deleted while logged out
+    client.get('/logout')
+    response = client.post(endpoint, follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == '/login'

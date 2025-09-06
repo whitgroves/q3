@@ -26,7 +26,7 @@
     </div>
 {% endmacro %}
 
-{% macro display_task(task) %}
+{% macro display_task(task, hide_requester) %}
     <div class="card" style="margin: 8px 0px">
         <div class="card-header">
             
@@ -35,7 +35,11 @@
                     <h5><a href="{{ url_for('tasks.get_task', task_id=task.id) }}">{{ task.summary }}</a></h5>
                 </div>
                 <div class="col text-end">
-                    Requested By: <a href="{{ url_for('users.get_user', user_id=task.requested_by) }}"> {{ task.requester }}</a>
+                    {% if hide_requester %}
+                        Requested at: {{ task.requested_at }}    
+                    {% else %}
+                        Requested By: <a href="{{ url_for('users.get_user', user_id=task.requested_by) }}"> {{ task.requester }}</a>    
+                    {% endif %}
                 </div>
                    
             </div>
