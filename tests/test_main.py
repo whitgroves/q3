@@ -1,4 +1,5 @@
 """Test for the main routes of qqueue."""
+
 from flask.testing import FlaskClient
 
 def test_index(client:FlaskClient) -> None:

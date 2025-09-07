@@ -19,9 +19,11 @@ def create_app(config:BaseConfig=DevConfig) -> Flask:
     login.init_app(app=app)
 
     # internal imports to avoid circular references
-    from qqueue.models import User                          # pylint: disable=import-outside-toplevel
-    from qqueue.routes.main import blueprint as main_routes # pylint: disable=import-outside-toplevel
-    from qqueue.routes.auth import blueprint as auth_routes # pylint: disable=import-outside-toplevel
+    from qqueue.models import User, Task                        # pylint: disable=import-outside-toplevel
+    from qqueue.routes.main import blueprint as main_routes     # pylint: disable=import-outside-toplevel
+    from qqueue.routes.auth import blueprint as auth_routes     # pylint: disable=import-outside-toplevel
+    from qqueue.routes.users import blueprint as user_routes    # pylint: disable=import-outside-toplevel
+    from qqueue.routes.tasks import blueprint as task_routes    # pylint: disable=import-outside-toplevel
 
     # init login
     login.login_view = 'auth.login'
@@ -32,14 +34,32 @@ def create_app(config:BaseConfig=DevConfig) -> Flask:
     # register routes
     app.register_blueprint(main_routes)
     app.register_blueprint(auth_routes)
+    app.register_blueprint(user_routes, url_prefix='/users')
+    app.register_blueprint(task_routes, url_prefix='/tasks')
 
     # init database
     if SQLITE_PREFIX in config.SQLALCHEMY_DATABASE_URI:
         os.makedirs(DATABASE_DIR, exist_ok=True)
     with app.app_context():
-        tables = [User]
-        if app.testing or not all(inspect(database.engine).has_table(x.__tablename__) for x in tables): #pylint: disable=line-too-long
-            app.logger.warning('Rebuilding database...')
+        rebuild_database = app.testing # Always rebuild on test
+        if not rebuild_database:
+            inspector = inspect(database.engine)
+            for table in [User, Task]: # !!! Don't forget to add new tables !!!
+                # Check that each table exists
+                if not inspector.has_table(table.__tablename__):
+                    rebuild_database = True
+                # And if it does, that all its columns are present in the model
+                if not rebuild_database:
+                    for column in inspector.get_columns(table.__tablename__):
+                        if not hasattr(table, column['name']):
+                            rebuild_database = True
+                            break
+                # If any snags are hit, stop immediately
+                else: break
+        # if (vs else) in case flag flipped during integrity check
+        if rebuild_database:
+            app.logger.log(level=(20 if app.testing else 40),
+                           msg='Rebuilding database...')
             database.drop_all()
             database.create_all()
     app.logger.info('Database ready.')

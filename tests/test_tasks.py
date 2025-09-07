@@ -1,224 +1,817 @@
-'''Test for the order routes of qqueue.'''
+'''Tests for the task endpoints of qqueue.'''
 
-from random import randint
-from datetime import date
-from typing_extensions import Any
-from flask import Response, g # globals
+from random import choice, randint
+from flask import g # globals - needed for CSRF token
 from flask.testing import FlaskClient
-from tests.conftest import user_data, task_data
+from tests.conftest import USER_DATA, TASK_DATA, COMMENT_DATA, Task, date, timedelta, authenticate_user, assert_redirect, database
+from qqueue.config import ACCEPTED_CURRENCIES
+from qqueue.models import Comment
 
-def login(client:FlaskClient, user_idx:int) -> None:
-    '''
-    Helper to authenticate test user requests.
+def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statements
+    '''Tests the endpoint /tasks'''
 
-    First makes a GET request to generate a CSRF token, 
-    then uses that token (via flask.g.csrf_token) to log in.
+    # Future-proofing
+    endpoint = '/tasks/'
+    logged_in_shared_text = [
+        '<p>Need a task done? <a href=',
+        '>Click here</a> to create a request.</p>',
+    ]
+    logged_in_with_tasks_text = [
+        '<p>Accept and complete tasks for other users.</p>',
+    ]
+    logged_out_with_tasks_text = [
+        '>Register now</a> to view, create, and complete tasks like:</p>',
+        '<p>Already registered? <a href=',
+        '>Click here</a> to login.</p>',
+    ]
+    logged_in_no_tasks_text = [
+        '<p>There are no open requests at this time.</p>',
+    ]
+    logged_out_no_tasks_text = [
+        '>Login</a> or <a href=',
+        '>register</a> to view, create, and complete tasks.</p>',
+    ]
 
-    Since this is not a `test_` method, does not have access 
-    to test fixtures; `client` must be passed manually.
-    '''
-    client.get('/login')
-    login_data = {'csrf_token': g.csrf_token,
-                  'email_or_username': user_data[user_idx]['email'],
-                  'password': user_data[user_idx]['password']}
-    client.post('/login', data=login_data)
-
-def test_index(client:FlaskClient) -> None:
-    # Page loads with all tasks listed
-    response = client.get('/tasks')
+    # When logged out, summaries of 5 unclaimed tasks with the nearest due
+    # dates are visible, but nothing else
+    response = client.get(endpoint)
     assert response.status_code == 200
-    for task in task_data:
-        assert all(field in response.text for field in task.values())
+    tasks_seen = 0
+    for i, task in enumerate(TASK_DATA):
+        # Tasks 0-3 are accepted, so should only see 4, 5, 6, 7, 8
+        if i > 8 or 'accepted_by' in task:
+            assert task['summary'] not in response.text
+        else:
+            assert task['summary'] in response.text
+            tasks_seen += 1
+        assert task['detail'] not in response.text
+        assert str(task['reward_amount']) not in response.text
+        assert task['reward_currency'] not in response.text
+        assert str(task['due_by']) not in response.text
+        assert USER_DATA[task['requested_by']-1]['username'] not in response.text # pylint: disable=line-too-long
+    assert tasks_seen == 5
+    assert all(text not in response.text for text in logged_in_with_tasks_text)
+    assert all(text in response.text for text in logged_out_with_tasks_text)
+    assert all(text not in response.text for text in logged_in_no_tasks_text)
+    assert all(text not in response.text for text in logged_out_no_tasks_text)
 
-def test_task(client:FlaskClient) -> None:
-    # Page loads with all task fields and comments
-    task_id = randint(1, len(task_data)) # random sample, db ID's start at 1
-    response = client.get(f'/tasks/{task_id}')
+    # But when logged in, summaries, details, requester, due date, and rewards
+    # should be visible for all unclaimed tasks in the system or for any tasks
+    # they've created
+    user_id = randint(1, 3)
+    authenticate_user(credentials=USER_DATA[user_id-1], client=client)
+    response = client.get(endpoint)
     assert response.status_code == 200
-    assert all(field in response.text for field in task_data[task_id].values())
+    for task in TASK_DATA:
+        if 'accepted_at' not in task or ('completed_at' not in task and user_id in [task['requested_by'], task['accepted_by']]): # pylint: disable=line-too-long
+            assert task['summary'] in response.text
+            assert task['detail'] in response.text
+            assert str(task['reward_amount']) in response.text
+            assert task['reward_currency'] in response.text
+            assert str(task['due_by']) in response.text
+            assert f'/users/{task["requested_by"]}' in response.text
+        else:
+            assert task['summary'] not in response.text
+            assert task['detail'] not in response.text
+            assert str(task['reward_amount']) not in response.text
+            assert task['reward_currency'] not in response.text
+            assert str(task['due_by']) not in response.text
+            assert str(task['accepted_at']) not in response.text
+            # cannot check for absence of user links since there are 2 of them
+            # and either could have a value the other isn't supposed to
+    assert all(text in response.text for text in logged_in_with_tasks_text)
+    assert all(text not in response.text for text in logged_out_with_tasks_text)
+    assert all(text not in response.text for text in logged_in_no_tasks_text)
+    assert all(text not in response.text for text in logged_out_no_tasks_text)
 
-    # Redirect to index on non-extant task id
-    response = client.get(f'/tasks/{len(task_data)+1}', follow_redirects=True)
+    # Now delete *unaccepted* tasks to test scenario where
+    # no tasks should be displayed
+    Task.query.filter(Task.accepted_at == None).delete(synchronize_session=False) # pylint: disable=line-too-long, singleton-comparison
+
+    # We will use user3 since they are not associated with any tasks
+    authenticate_user(credentials=USER_DATA[3], client=client)
+    response = client.get(endpoint)
     assert response.status_code == 200
-    assert response.request.path == '/tasks/'
+    for task in TASK_DATA:
+        assert task['summary'] not in response.text
+        assert task['detail'] not in response.text
+        assert str(task['reward_amount']) not in response.text
+        assert task['reward_currency'] not in response.text
+        assert str(task['due_by']) not in response.text
+    assert all(text in response.text for text in logged_in_shared_text)
+    assert all(text not in response.text for text in logged_in_with_tasks_text)
+    assert all(text not in response.text for text in logged_out_with_tasks_text)
+    assert all(text in response.text for text in logged_in_no_tasks_text)
+    assert all(text not in response.text for text in logged_out_no_tasks_text)
+
+    # Then logout and repeat the check, but for a different message
+    client.get('/logout')
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    for task in TASK_DATA:
+        assert task['summary'] not in response.text
+        assert task['detail'] not in response.text
+        assert str(task['reward_amount']) not in response.text
+        assert task['reward_currency'] not in response.text
+        assert str(task['due_by']) not in response.text
+    assert all(text not in response.text for text in logged_in_with_tasks_text)
+    assert all(text not in response.text for text in logged_out_with_tasks_text)
+    assert all(text not in response.text for text in logged_in_no_tasks_text)
+    assert all(text in response.text for text in logged_out_no_tasks_text)
 
 def test_new_task(client:FlaskClient) -> None:
-    # Login as random user to generate csrf token
-    login(client=client, user_idx=randint(0, len(user_data)-1))
+    '''Tests the endpoint /tasks/new'''
 
-    # Helper to future-proof requests
-    def create_task(task:dict, token:Any=g.csrf_token) -> Response:
-        return client.post('/tasks/new',
-                           data={'csrf_token':token, **task},
-                           follow_redirects=True)
+    # Future-proofing
+    endpoint = '/tasks/new'
+    new_task = {'summary':'create a new task',
+                'detail':'lorem ipsum si dolor amet',
+                'reward_amount': 420.0,
+                'reward_currency': 'USD',
+                'due_by':date.today()+timedelta(7)}
 
-    # New task is created successfully
-    task_valid = {'title':'New Task', 'description':'7 red lines', 'due':date(2025, 9, 1)} # pylint: disable=line-too-long
-    response = create_task(task_valid)
+    # While logged out, both GET and POST requests redirect to login
+    assert_redirect(client.get(endpoint))
+    assert_redirect(client.post(endpoint, data=new_task))
+
+    # User can view the form while logged in
+    authenticate_user(credentials=choice(USER_DATA), client=client)
+    response = client.get(endpoint)
     assert response.status_code == 200
-    assert response.request.path == f'/tasks/{len(task_data)+1}'
-    assert all(field in response.text for field in task_valid.values())
+    assert all(field.replace('_', ' ') in response.text.lower()
+               for field in new_task)
 
-    # New tasks must have a title
-    task_no_title = {'description':'untitled', 'due':date(2025, 9, 1)}
-    response = create_task(task_no_title)
+    # User can create a task while logged in, with a redirect to the new task
+    redirect = f'/tasks/{len(TASK_DATA)+1}'
+    response = client.post(endpoint,
+                           data={'csrf_token':g.csrf_token, **new_task},
+                           follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == redirect
+    assert all(str(value) in response.text for value in new_task.values())
+
+    # Now try again without the CSRF token; request should fail (400)
+    redirect = f'/tasks/{len(TASK_DATA)+2}'
+    response = client.post(endpoint, data=new_task)
     assert response.status_code == 400
 
-    # New tasks must have a due date
-    task_no_due_date = {'title':'Procrastinate', 'description':'do it tomorrow'}
-    response = create_task(task_no_due_date)
+    # Request should also fail if any of the required fields are missing and
+    # redirect back to the new task form. `new_task` includes only these, so
+    # we loop through the keys and try to send copies missing each one
+    for field in new_task:
+        invalid_task = new_task.copy()
+        del invalid_task[field]
+        response = client.post(endpoint,
+                               data={'csrf_token':g.csrf_token,
+                                     **invalid_task},
+                               follow_redirects=True)
+        assert response.status_code == 400
+        assert response.request.path == endpoint
+
+    # The same behavior is true if a non-accepted currency is entered
+    invalid_currency = 'NOGOOD'
+    assert invalid_currency not in ACCEPTED_CURRENCIES # sanity check
+    invalid_task = new_task.copy()
+    invalid_task['reward_currency'] = invalid_currency
+    response = client.post(endpoint,
+                           data={'csrf_token':g.csrf_token,
+                                 **invalid_task},
+                           follow_redirects=True)
     assert response.status_code == 400
+    assert response.request.path == endpoint
 
-    # Can't create task without token
-    response = create_task(task_valid, token='')
-    assert response.status_code == 400
+def test_get_task(client:FlaskClient) -> None: # pylint: disable=too-many-statements
+    '''Tests the endpoint /tasks/<task_id>'''
 
-    # Can't create task while logged out; redirects to login
-    task_logged_out = {'title':'logout',
-                       'description':'throw some',
-                       'due':date(2026, 9, 1)}
-    client.get('/logout')
-    response = create_task(task_logged_out)
-    assert response.status_code == 302
-    assert response.location.startswith('/login')
+    # Future-proofing
+    shared_text = [ # always visible
+        '<button type="submit" class="btn btn-primary btn-sm">Add Comment</button>',
+    ]
+    update_text = [
+        'class="btn btn-primary">Edit Request</a>',
+        '<button class="btn btn-danger" onclick="return confirm(\'Delete this task forever?\')">',
+        'Delete Request',
+    ]
+    accept_text = [
+        '<button class="btn btn-success" onclick="return confirm(\'Accept this task as an active work order?\')">',
+        'Accept Request',
+    ]
+    provider_text = [
+        '<button class="btn btn-success" onclick="return confirm(\'Send this order to the requester for approval?\')">',
+        'Complete Order',
+        '<button class="btn btn-warning" onclick="return confirm(\'Release this task back to the open requests pool?\')">',
+        'Release Task',
+    ]
+    approver_text = [
+        '<button class="btn btn-primary" onclick="return confirm(\'Approve this work and send payout?\')">',
+        'Approve Work',
+        '<button class="btn btn-danger" onclick="return confirm(\'Send this task back to the provider?\')">',
+        'Reject Order',
+    ]
+    display_fields = [
+        'summary',
+        'detail',
+        'reward_amount',
+        'reward_currency',
+        'due_by',
+        'requested_by'
+    ]
+    def get_sample(min_id:int, max_id:int) -> tuple[int, str, dict]:
+        '''Helper that pulls a sample task based on database id (NOT index)'''
+        task_id = randint(min_id, max_id)
+        return task_id, f'/tasks/{task_id}', TASK_DATA[task_id-1]
 
-    # Confirm task was not created despite redirect
-    all_tasks = client.get('/tasks/')
-    assert all(field not in all_tasks.text for field in task_logged_out.values()) # pylint: disable=line-too-long
+    # The first sample is any of the non-accepted tasks in the test data
+    sample_id, endpoint, sample_task = get_sample(5, len(TASK_DATA))
+
+    # Accessing while logged out redirects to login
+    assert_redirect(client.get(endpoint))
+
+    # Logged in user can see all fields in the test data and the option to
+    # accept or comment but not the options to edit or delete. We use user3
+    # since they aren't associated with any tasks.
+    authenticate_user(credentials=USER_DATA[3], client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
+
+    # The requester of the task should be able to see edit, delete, and comment,
+    # but not to accept the task themselves
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
+
+    # For an accepted task, the requester should not see edit/delete options,
+    # but only have the option to leave a comment...
+    sample_id, endpoint, sample_task = get_sample(3, 3)
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
+
+    # ...the provider should not see edit/delete options,
+    # but have the options to leave a comment, release, or complete the task...
+    authenticate_user(credentials=USER_DATA[sample_task['accepted_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
+
+    # ...and unrelated users should get redirected to the tasks index.
+    authenticate_user(credentials=USER_DATA[3], client=client)
+    assert_redirect(client.get(endpoint), redirect='/tasks')
+
+    # For accepted and completed tasks, the provider should only see the option
+    # to comment...
+    sample_id, endpoint, sample_task = get_sample(4, 4)
+    authenticate_user(credentials=USER_DATA[sample_task['accepted_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
+
+    # ...the requester should have options to comment/approve/reject...
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
+
+    # ...and unrelated users should get redirected to the tasks index.
+    authenticate_user(credentials=USER_DATA[3], client=client)
+    assert_redirect(client.get(endpoint), redirect='/tasks')
+
+    # Once approved, the only option available for providers and requesters
+    # is to leave a comment; all other users get redirected.
+    sample_id, endpoint, sample_task = get_sample(1, 2)
+    authenticate_user(credentials=USER_DATA[sample_task['accepted_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
+
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert all(str(sample_task[field]) in response.text
+               for field in display_fields)
+    assert all(text in response.text for text in shared_text)
+    assert all(text not in response.text for text in update_text)
+    assert all(text not in response.text for text in accept_text)
+    assert all(text not in response.text for text in provider_text)
+    assert all(text not in response.text for text in approver_text)
+    for comment in COMMENT_DATA:
+        if comment['task_id'] == sample_id:
+            assert comment['text'] in response.text
+        else:
+            assert comment['text'] not in response.text
+
+    authenticate_user(credentials=USER_DATA[3], client=client)
+    assert_redirect(client.get(endpoint), redirect='/tasks')
 
 def test_edit_task(client:FlaskClient) -> None:
-    # Login as random user to generate csrf token
-    login(client=client, user_idx=randint(0, len(user_data)-1))
+    '''Tests the endpoint /tasks/<task_id>/edit'''
 
-    # Helper to future-proof requests
-    def edit_task(task_id:int, task:dict, token:Any=g.csrf_token) -> Response:
-        return client.post(f'/tasks/{task_id}/edit',
-                           data={'csrf_token':token, **task},
-                           follow_redirects=True)
+    # Future-proofing
+    task_edits = {
+        'summary': 'Make edits to this task',
+        'detail': 'Something you would not expect to see!',
+        'reward_amount': 69.0,
+        'reward_currency': choice(ACCEPTED_CURRENCIES),
+        'due_by': date.today()+timedelta(randint(0, 30)),
+    }
+    def get_sample(min_id:int, max_id:int) -> tuple[str, dict]:
+        '''Helper that pulls a sample task based on database id (NOT index)'''
+        task_id = randint(min_id, max_id)
+        return f'/tasks/{task_id}/edit', TASK_DATA[task_id-1]
 
-    # Task can only be edited by the associated user and no one else.
-    # Tasks are assigned randomly for testing, so we sample a random task and
-    # loop through all users to ensure only 1 can edit it.
-    # When that one is found, we run other sub-tests as well
-    # (e.g., updating only 1 field at a time)
+    # Sample is drawn from non-accepted tasks
+    endpoint, sample_task = get_sample(5, len(TASK_DATA))
 
-    successful_updates = 0
-    task_id = randint(1, len(task_data))
+    # Both GET and POST requests redirect to login when logged out
+    assert_redirect(client.get(endpoint))
+    assert_redirect(client.post(endpoint, data=task_edits))
 
-    for i in range(len(user_data)):
+    # Login to generate CSRF token and valid edit data
+    authenticate_user(credentials=USER_DATA[3], client=client)
+    data = {'csrf_token':g.csrf_token, **task_edits}
 
-        # Attempt to update the task while logged in as each user
-        login(client=client, user_idx=i)
-        task_valid = {'title':'Updated Task',
-                      'description':'2 in green ink',
-                      'due':date(2025, 9, 2)}
-        response = edit_task(task_id, task_valid)
+    # Even when logged in, non-requesters are redirected to the task's
+    # display page. user3 is used here since they have 0 requests.
+    redirect = endpoint.replace('/edit', '')
+    assert_redirect(client.get(endpoint), redirect=redirect)
+    assert_redirect(client.post(endpoint, data=data), redirect=redirect)
 
-        # Skip to next user if the edit failed
-        if response.status_code != 200: continue
+    # Only the task requester can load into the edit page, whic pre-populates
+    # with the existing task data for all editable fields
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    assert response.request.path == endpoint
+    assert all(str(sample_task[field]) in response.text for field in task_edits)
 
-        # On successful edit, redirect to task page with updates visible
-        assert response.request.path == f'/tasks/{task_id}'
-        assert all(field in response.text for field in task_valid.values())
+    # And edits that they make are accepted and displayed after the app
+    # redirects to the task page upon submission
+    response = client.post(endpoint, data=data, follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == redirect
+    # for value in task_edits.values():
+    #     assert str(value) in response.text
+    assert all(str(value) in response.text for value in task_edits.values())
 
-        # Only one user can update the task
-        successful_updates += 1
-        if successful_updates > 1: break
+    # But no updates are accepted without the CSRF token.
+    # Here, we attempt to re-update to new values, but this should fail
+    response = client.post(endpoint, data=task_edits)
+    assert response.status_code == 400
 
-        # Tasks can be updated with only the title
-        title_only = {'title':'Updated Again'}
-        response = edit_task(task_id, title_only)
-        assert response.status_code == 200
-        assert response.request.path == f'/tasks/{task_id}'
-        assert title_only['title'] in response.text
-
-        # Tasks can be updated with only the description
-        description_only = {'description':'1 in invisible ink'}
-        response = edit_task(task_id, description_only)
-        assert response.status_code == 200
-        assert response.request.path == f'/tasks/{task_id}'
-        assert description_only['description'] in response.text
-
-        # Tasks can be updated with only the due date
-        due_only = {'due':date(2025, 9, 3)}
-        response = edit_task(task_id, due_only)
-        assert response.status_code == 200
-        assert response.request.path == f'/tasks/{task_id}'
-        assert due_only['due'] in response.text
-
-        # Can't update without the token
-        response = edit_task(task_id, task_valid, token='')
-        assert response.status_code == 400
-
-        # Can't create task while logged out; redirects to login
-        task_logged_out = {'title':'logout',
-                           'description':'roto rooter',
-                           'due':date(2026, 9, 1)}
-        client.get('/logout')
-        response = edit_task(task_id, task_logged_out)
-        assert response.status_code == 302
-        assert response.location.startswith('/login')
-
-        # Confirm task was not created despite redirect
-        task = client.get(f'/tasks/{task_id}')
-        assert all(field not in task.text for field in task_logged_out.values())
-
-    # Again, one and only one user can update the task
-    assert successful_updates == 1
+    # For accepted/completed/approved tasks, the user should get redirected
+    # to the task page with no changes if related, or the tasks index if not
+    test_cases = {
+        'accepted': get_sample(3, 3),
+        'completed': get_sample(4, 4),
+        'approved': get_sample(1, 2),
+    }
+    for _, (endpoint, sample_task) in test_cases.items():
+        authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                          client=client)
+        redirect = endpoint.replace('/edit', '')
+        assert_redirect(client.get(endpoint), redirect=redirect)
+        assert_redirect(client.post(endpoint, data=data), redirect=redirect)
+        authenticate_user(credentials=USER_DATA[3], client=client)
+        redirect = '/tasks'
+        assert_redirect(client.get(endpoint), redirect=redirect)
+        assert_redirect(client.post(endpoint, data=data), redirect=redirect)
 
 def test_delete_task(client:FlaskClient) -> None:
-    # Login as random user to generate csrf token
-    login(client=client, user_idx=randint(0, len(user_data)-1))
+    '''Tests the endpoint /tasks/<task_id>/delete'''
 
-    # Helper to future-proof requests
-    def delete_task(task_id:int, token:Any=g.csrf_token) -> Response:
-        return client.post(f'/tasks/{task_id}/delete',
-                           data={'csrf_token':token},
-                           follow_redirects=True)
+    # Future-proofing
+    redirect = '/tasks/'
+    def get_sample(min_id:int, max_id:int) -> tuple[str, dict]:
+        '''Helper that pulls a sample task based on database id (NOT index)'''
+        task_id = randint(min_id, max_id)
+        return task_id, f'/tasks/{task_id}/delete', TASK_DATA[task_id-1]
 
-    # Task can only be deleted by the associated user and no one else.
-    # We test this in a similar way to edit functionality (see test_edit_task).
+    # A user that is unrelated to the task cannot delete it, and will be
+    # redirected to the tasks index with the task still in the database
+    # We use user3 (id:4) again since they aren't associated with any tasks.
+    authenticate_user(credentials=USER_DATA[3], client=client)
+    task_id, endpoint, sample_task = get_sample(5, len(TASK_DATA))
 
-    successful_updates = 0
-    task_id = randint(1, len(task_data))
+    response = client.post(endpoint)
+    assert response.status_code == 403
+    assert database.session.get(Task, task_id) is not None
+    assert sample_task['detail'] in client.get(redirect).text
 
-    for i in range(len(user_data)):
+    # The task requester, however, can delete the task, and gets redirected
+    # back to the task index with the task removed from the database
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    assert database.session.get(Task, task_id) is not None # sanity check
+    assert_redirect(response=client.post(endpoint),redirect=redirect)
+    assert database.session.get(Task, task_id) is None
+    response = client.get(f'/tasks/{task_id}')
+    assert response.status_code == 404
+    response = client.get(redirect)
+    assert sample_task['summary'] in response.text # Task "..." was deleted
+    assert sample_task['detail'] not in response.text
 
-        # Attempt to delete the task while logged in as each user
-        login(client=client, user_idx=i)
-
-        # Make 1 attempt without the token to confirm it's required
-        response = delete_task(task_id, token='')
-        assert response.status_code == 400
-
-        # Valid deletion (attempt)
-        response = delete_task(task_id)
-
-        # Skip to next user if the delete fails
-        if response.status_code != 200: continue
-
-        # On successful delete, redirect to tasks index for that user
-        assert response.request.path == f'/users/{i+1}/tasks'
-
-        # Only one user can delete the task
-        successful_updates += 1
-        if successful_updates > 1: break
-
-        # Tasks can't be deleted twice
-        response = delete_task(task_id)
-        assert response.status_code == 404
-
-        # Non-extant tasks can't be deleted
-        response = delete_task(len(task_data)+1)
-        assert response.status_code == 404
-
-        # We have to create a new task so we can test deletion while logged out
-        task_remade = {'title':'Yep', 'description':"We'll do it live", 'due':date.today()} # pylint: disable=line-too-long
-        client.post('/tasks/new', data={'csrf_token':g.csrf_token, **task_remade}) # pylint: disable=line-too-long
-        client.get('/logout')
-        response = delete_task(len(task_data)) # possibly s/b +1, we'll find out
+    # For an accepted/completed/approved task, the delete request should fail
+    # for any user, even the accepter or requester
+    task_id, endpoint, sample_task = get_sample(1, 4)
+    test_cases = [
+        USER_DATA[3],                             # unrelated user
+        USER_DATA[sample_task['requested_by']-1], # requester
+        USER_DATA[sample_task['accepted_by']-1],  # accepter
+    ]
+    for test_user in test_cases:
+        authenticate_user(credentials=test_user, client=client)
+        response = client.post(endpoint)
         assert response.status_code == 403
-        assert all(field in response.text for field in task_remade.values())
+        assert database.session.get(Task, task_id) is not None
 
-    # Again, one and only one user can delete the task
-    assert successful_updates == 1
+def test_accept_task(client:FlaskClient) -> None:
+    '''Tests the endpoint /tasks/<task_id>/accept'''
+
+    # Future-proofing
+    def get_sample(min_id:int, max_id:int) -> tuple[str, dict]:
+        '''Helper that pulls a sample task based on database id (NOT index)'''
+        task_id = randint(min_id, max_id)
+        return task_id, f'/tasks/{task_id}/accept', TASK_DATA[task_id-1]
+
+    # The user that requested the task cannot accept it
+    task_id, endpoint, sample_task = get_sample(5, len(TASK_DATA))
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    response = client.post(endpoint)
+    assert response.status_code == 403
+    assert database.session.get(Task, task_id).accepted_at is None
+
+    # However, any other user can. We use either user1 or user3 since neither
+    # has requested any tasks
+    authenticate_user(credentials=USER_DATA[choice([1, 3])], client=client)
+    assert_redirect(response=client.post(endpoint),
+                    redirect=f'/tasks/{task_id}')
+    assert database.session.get(Task, task_id).accepted_at is not None
+
+    # For an accepted/completed/approved task, the endpoint will fail for
+    # any and all users without updating the database
+    task_id, endpoint, sample_task = get_sample(1, 4)
+    accepted_at = database.session.get(Task, task_id).accepted_at
+    for test_user in USER_DATA:
+        authenticate_user(credentials=test_user, client=client)
+        response = client.post(endpoint)
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id).accepted_at == accepted_at
+
+def test_release_task(client:FlaskClient) -> None:
+    '''Tests the endpoint /tasks/<task_id>/release'''
+
+    # Future-proofing
+    def get_sample(min_id:int, max_id:int) -> tuple[int, str, dict]:
+        '''Helper that pulls a sample task based on database id (NOT index)'''
+        task_id = randint(min_id, max_id)
+        return task_id, f'/tasks/{task_id}/release', TASK_DATA[task_id-1]
+
+    # Only task index 2 (id:3) is accepted but not completed/approved
+    task_id, endpoint, sample_task = get_sample(3, 3)
+    assert database.session.get(Task, task_id).accepted_at is not None
+    assert database.session.get(Task, task_id).completed_at is None
+
+    # Neither the requester nor an unrelated user can release a task
+    for user_index in [3, sample_task['requested_by']-1]:
+        authenticate_user(credentials=USER_DATA[user_index], client=client)
+        response = client.post(endpoint)
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id).accepted_at is not None
+
+    # Only the accepter can release it, which redirects to the task's page
+    authenticate_user(credentials=USER_DATA[sample_task['accepted_by']-1],
+                      client=client)
+    assert_redirect(client.post(endpoint), redirect=f'/tasks/{task_id}')
+    assert database.session.get(Task, task_id).accepted_at is None
+
+    # For completed tasks, no one may release it
+    task_id, endpoint, sample_task = get_sample(1, 4)
+    accepted_at = database.session.get(Task, task_id).accepted_at
+    for test_user in USER_DATA:
+        authenticate_user(credentials=test_user, client=client)
+        response = client.post(endpoint)
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id).accepted_at == accepted_at
+
+def test_complete_task(client:FlaskClient) -> None:
+    '''Tests the endpoint /tasks/<task_id>/complete'''
+
+    # Future-proofing
+    def get_sample(min_id:int, max_id:int) -> tuple[int, str, dict]:
+        '''Helper that pulls a sample task based on database id (NOT index)'''
+        task_id = randint(min_id, max_id)
+        return task_id, f'/tasks/{task_id}/complete', TASK_DATA[task_id-1]
+
+    # Only task index 2 (id:3) is ready to be completed (not approved/rejected)
+    task_id, endpoint, sample_task = get_sample(3, 3)
+    assert database.session.get(Task, task_id).accepted_at is not None
+    assert database.session.get(Task, task_id).completed_at is None
+
+    # Neither the requester nor an unrelated user can complete a task
+    for user_index in [3, sample_task['requested_by']-1]:
+        authenticate_user(credentials=USER_DATA[user_index], client=client)
+        response = client.post(endpoint)
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id).completed_at is None
+
+    # Only the accepter can complete it, which redirects to the task's page
+    authenticate_user(credentials=USER_DATA[sample_task['accepted_by']-1],
+                      client=client)
+    assert_redirect(client.post(endpoint), redirect=f'/tasks/{task_id}')
+    assert database.session.get(Task, task_id).completed_at is not None
+
+    # For completed tasks, no one may complete it
+    task_id, endpoint, sample_task = get_sample(1, 4)
+    completed_at = database.session.get(Task, task_id).completed_at
+    for test_user in USER_DATA:
+        authenticate_user(credentials=test_user, client=client)
+        response = client.post(endpoint)
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id).completed_at == completed_at
+
+def test_approve_task(client:FlaskClient) -> None:
+    '''Tests the endpoint /tasks/<task_id>/approve'''
+
+    # Future-proofing
+    def get_sample(min_id:int, max_id:int) -> tuple[int, str, dict]:
+        '''Helper that pulls a sample task based on database id (NOT index)'''
+        task_id = randint(min_id, max_id)
+        return task_id, f'/tasks/{task_id}/approve', TASK_DATA[task_id-1]
+
+    # Only task index 3 (id:4) is ready to be approved (completed/unrejected)
+    task_id, endpoint, sample_task = get_sample(4, 4)
+    assert database.session.get(Task, task_id).completed_at is not None
+    assert database.session.get(Task, task_id).approved_at is None
+
+    # Neither the accepter nor an unrelated user can approve a task
+    for user_index in [3, sample_task['accepted_by']-1]:
+        authenticate_user(credentials=USER_DATA[user_index], client=client)
+        response = client.post(endpoint)
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id).approved_at is None
+
+    # Only the requester can approve it, which redirects to the task's page
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    assert_redirect(client.post(endpoint), redirect=f'/tasks/{task_id}')
+    assert database.session.get(Task, task_id).approved_at is not None
+
+    # For approved tasks, no one may re-approve it
+    task_id, endpoint, sample_task = get_sample(1, 2)
+    approved_at = database.session.get(Task, task_id).approved_at
+    for test_user in USER_DATA:
+        authenticate_user(credentials=test_user, client=client)
+        response = client.post(endpoint)
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id).approved_at == approved_at
+
+def test_reject_task(client:FlaskClient) -> None:
+    '''Tests the endpoint /tasks/<task_id>/reject'''
+
+    # Future-proofing
+    def get_sample(min_id:int, max_id:int) -> tuple[int, str, dict]:
+        '''Helper that pulls a sample task based on database id (NOT index)'''
+        task_id = randint(min_id, max_id)
+        return task_id, f'/tasks/{task_id}/reject', TASK_DATA[task_id-1]
+
+    # Only task index 3 (id:4) is ready to be rejected (not approved/completed)
+    task_id, endpoint, sample_task = get_sample(4, 4)
+    assert database.session.get(Task, task_id).completed_at is not None
+    assert database.session.get(Task, task_id).approved_at is None
+
+    # Neither the accepter nor an unrelated user can reject a task
+    for user_index in [3, sample_task['accepted_by']-1]:
+        authenticate_user(credentials=USER_DATA[user_index], client=client)
+        response = client.post(endpoint)
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id).completed_at is not None
+
+    # Only the requester can reject it, which redirects to the task's page
+    authenticate_user(credentials=USER_DATA[sample_task['requested_by']-1],
+                      client=client)
+    assert_redirect(client.post(endpoint), redirect=f'/tasks/{task_id}')
+    assert database.session.get(Task, task_id).completed_at is None
+
+    # For approved tasks, no one may reject it
+    task_id, endpoint, sample_task = get_sample(1, 2)
+    completed_at = database.session.get(Task, task_id).completed_at
+    for test_user in USER_DATA:
+        authenticate_user(credentials=test_user, client=client)
+        response = client.post(endpoint)
+        assert response.status_code == 403
+        assert database.session.get(Task, task_id).completed_at == completed_at
+
+def test_add_comment(client:FlaskClient) -> None:
+    '''Tests /tasks/<task_id>/comments/new'''
+
+    # Future-proofing
+    def create_endpoint(task_id:int) -> tuple[str, str]:
+        return f'/tasks/{task_id}/comments/new', f'/tasks/{task_id}'
+
+    # If a task is open, anyone can leave a comment, which will redirect
+    # to the task page with it displayed
+    endpoint, redirect = create_endpoint(randint(5, len(TASK_DATA)))
+    for i, user in enumerate(USER_DATA):
+        authenticate_user(credentials=user, client=client)
+        data = {'created_by': i+1, 'text': f'Comment #{i}'}
+        response = client.post(endpoint, data=data)
+        assert response.status_code == 403 # CSRF token must be present
+        data['csrf_token'] = g.csrf_token
+        response = client.post(endpoint, data=data, follow_redirects=True)
+        assert response.status_code == 200
+        assert response.request.path == redirect
+        assert data['text'] in response.text
+
+    # Once acccepted, only the requester and accepter can comment; anyone else
+    # gets a 403
+    sample_task_id = randint(1, 4)
+    sample_task = TASK_DATA[sample_task_id-1]
+    endpoint, redirect = create_endpoint(sample_task_id)
+    for i, user in enumerate(USER_DATA):
+        authenticate_user(credentials=user, client=client)
+        data = {'csrf_token': g.csrf_token,
+                'created_by': i+1,
+                'text': f'Comment #{i}00'}
+        response = client.post(endpoint, data=data, follow_redirects=True)
+        if i+1 in [sample_task['requested_by'], sample_task['accepted_by']]:
+            assert response.status_code == 200
+            assert response.request.path == redirect
+            assert data['text'] in response.text
+        else:
+            assert response.status_code == 403
+
+    # If logged out, no one may comment; any requests redirect to login
+    client.get('/logout')
+    data = {'csrf_token': g.csrf_token,
+            'created_by': randint(1, len(USER_DATA)),
+            'text': f'Invalid comment.'}
+    response = client.post(endpoint, data=data, follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == '/login'
+
+def test_edit_comment(client:FlaskClient) -> None:
+    '''Tests /tasks/comments/<comment_id>/edit'''
+
+    # Future-proofing
+    def create_endpoint(comment_id:int) -> tuple[str, str]:
+        return f'/tasks/comments/{comment_id}/edit',\
+               f'/tasks/{COMMENT_DATA[comment_id-1]["task_id"]}'
+
+    # A comment can be edited at any time by the user that wrote it
+    sample_comment_id = randint(1, len(COMMENT_DATA))
+    sample_user_id = COMMENT_DATA[sample_comment_id-1]['created_by']
+    authenticate_user(credentials=USER_DATA[sample_user_id-1], client=client)
+    endpoint, redirect = create_endpoint(sample_comment_id)
+    data = {'text': 'this is the updated comment text.'}
+    response = client.post(endpoint, data=data)
+    assert response.status_code == 403 # forbidden without CSRF token
+    data['csrf_token'] = g.csrf_token
+    response = client.post(endpoint, data=data, follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == redirect
+    assert data['text'] in response.text
+
+    # Users can never edit comments they didn't author
+    # We test by rolling for a random user until we get one that isn't the
+    # author of the sample comment
+    while sample_user_id == COMMENT_DATA[sample_comment_id-1]['created_by']:
+        sample_user_id = randint(1, len(USER_DATA))
+    authenticate_user(credentials=USER_DATA[sample_user_id-1], client=client)
+    data['text'] = 'this is an invalid update from the wrong user.'
+    response = client.post(endpoint, data=data, follow_redirects=True)
+    assert response.status_code == 403
+    assert data['text'] not in client.get(redirect).text
+
+    # And comments can never be edited while logged out; attempting to do so
+    # redirects to login without updating the text
+    client.get('/logout')
+    response = client.post(endpoint, data=data, follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == '/login'
+
+def test_delete_comment(client:FlaskClient) -> None:
+    '''Tests /tasks/comments/<comment_id>/delete'''
+
+    # Future-proofing
+    def create_endpoint(comment_id:int)-> tuple[str, str]:
+        return f'/tasks/comments/{comment_id}/delete',\
+               f'/tasks/{COMMENT_DATA[comment_id-1]["task_id"]}'
+
+    # A comment can be deleted at any time by the user that wrote it
+    sample_comment_id = randint(1, len(COMMENT_DATA))
+    sample_comment = COMMENT_DATA[sample_comment_id-1]
+    sample_user_id = sample_comment['created_by']
+    authenticate_user(credentials=USER_DATA[sample_user_id-1], client=client)
+    endpoint, redirect = create_endpoint(sample_comment_id)
+    response = client.post(endpoint, follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == redirect
+    assert sample_comment['text'] not in client.get(redirect).text
+    assert database.session.get(Comment, sample_comment_id) is None
+
+    # Users can never delete comments they didn't author
+    deleted_sample_id = sample_comment_id
+    while sample_comment_id == deleted_sample_id:
+        sample_comment_id = randint(1, len(COMMENT_DATA))
+    sample_comment = COMMENT_DATA[sample_comment_id-1]
+    while sample_user_id == sample_comment['created_by']:
+        sample_user_id = randint(1, len(USER_DATA))
+    authenticate_user(credentials=USER_DATA[sample_user_id-1], client=client)
+    response = client.post(endpoint, follow_redirects=True)
+    assert response.status_code == 403
+    assert database.session.get(Comment, sample_comment_id) is not None
+
+    # And comments can never be deleted while logged out
+    client.get('/logout')
+    response = client.post(endpoint, follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == '/login'

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Edit {{ user.username }} {% endblock %}</h1>
+    <hr>
+    <form method="post">
+        {{ form.csrf_token }}
+
+        <h5>{{ form.username.label(class='form-label') }}</h5>
+        <p>{{ form.username(class='form-control', size=32, value=user.username) }}</p>
+
+        <h5>{{ form.headline.label(class='form-label') }}</h5>
+        <p>{{ form.headline(class='form-control', size=256, value=user.headline) }}</p>
+
+        <h5>{{ form.bio.label(class='form-label') }}</h5>
+        <p><textarea class='form-control' id='bio' name='bio'>{{ user.bio }}</textarea></p>
+        {# ^ https://stackoverflow.com/a/53126855/3178898 #}
+
+        <p><button type="submit" class="btn btn-primary">Update Info</button></p>
+    </form>
+{% endblock %}

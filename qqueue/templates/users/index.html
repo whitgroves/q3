@@ -1,0 +1,17 @@
+{% from 'macros.html' import display_user %}
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} 👥 {% endblock %} Users</h1>
+    <hr>
+    {% if current_user.is_authenticated %}
+        {% for user in users %}
+            {{ display_user(user) }}
+        {% endfor %}
+    {% else %}
+        <div>
+            <p>{{ user_count }} user{% if user_count != 1 %}s are{% else %} is{% endif %} already on qqueue.</p>
+            <p><a href="{{ url_for('auth.login') }}">Login</a> or <a href="{{ url_for('auth.register') }}">register</a> to see user profiles and make requests.</p>
+        </div>
+    {% endif %}
+{% endblock %}

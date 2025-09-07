@@ -1,12 +1,54 @@
-{% from 'macros.html' import display_tasks %}
+{% from 'macros.html' import display_task %}
 {% extends 'base.html' %}
 
 {% block content %}
-    <h1>{% block title %} 📚 {% endblock %} All Tasks</h1>
+    <h1>{% block title %} 📋 {% endblock %} Tasks</h1>
     <hr>
     {% if current_user.is_authenticated %}
-        <a class="btn btn-success" href="{{ url_for('tasks.user_tasks') }}">My Tasks</a>
+        <h3>My Tasks</h3>
+        {% if accepted_tasks|length > 0 %}
+            <p>Complete each of these tasks before they're due.</p>
+            {% for task in accepted_tasks %}
+                {{ display_task(task) }}    
+            {% endfor %}
+        {% else %}
+            <p>You have no outstanding tasks.</p>
+        {% endif %}
         <hr>
+        <h3>Pending Orders</h3>
+        {% if requested_tasks|length > 0 %}
+            <p>See which of your tasks others are working on.</p>
+            {% for task in requested_tasks %}
+                {{ display_task(task, True) }}    
+            {% endfor %}
+        {% else %}
+            <p>You have no orders being worked on right now.</p>
+        {% endif %}
+        <hr>
+        <h3>Open Requests</h3>
+        {% if open_tasks|length > 0 %}
+            <p>Accept and complete tasks for other users.</p>
+            {% for task in open_tasks %}
+                {{ display_task(task) }}    
+            {% endfor %}
+        {% else %}
+            <p>There are no open requests at this time.</p>
+        {% endif %}
+        <hr>
+        <p>Need a task done? <a href="{{ url_for('tasks.new_task') }}">Click here</a> to create a request.</p>
+    {% else %}
+        {% if summaries|length > 0 %}
+            <p><a href="{{ url_for('auth.register') }}">Register now</a> to view, create, and complete tasks like:</p>
+            {% for summary in summaries %}
+                <div class="card" style="margin: 8px 0px">
+                    <div class="card-body">
+                        <p>{{ summary }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+            <p>Already registered? <a href="{{ url_for('auth.login') }}">Click here</a> to login.</p>
+        {% else %}
+        <p><a href="{{ url_for('auth.login') }}">Login</a> or <a href="{{ url_for('auth.register') }}">register</a> to view, create, and complete tasks.</p>
+        {% endif %}
     {% endif %}
-    {{ display_tasks(tasks) }}
 {% endblock %}

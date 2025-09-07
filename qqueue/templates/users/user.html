@@ -1,0 +1,53 @@
+{% from 'macros.html' import display_task %}
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} 👥 {% endblock %} User: {{ user.username if current_user.is_authenticated else username }} </h1>
+    {% if current_user.is_authenticated %}
+        {% if user.headline|length > 0 %}
+            <h5><i>{{ user.headline }}</i></h5>
+        {% endif %}
+        {% if user.bio|length > 0 %}
+            <p>{{ user.bio }}</p>
+        {% else %}
+            <p><i>User has no info to display.</i></p>
+        {% endif %}
+        <hr>
+        <h3>Open Requests:</h3>
+        {% if requests|length > 0 %}
+            {% for task in requests %}
+                {{ display_task(task, True) }}
+            {% endfor %}
+        {% else %}
+            <p><i>User has no open requests.</i></p>
+        {% endif %}
+        <hr>
+        <h3>Active Orders:</h3>
+        {% if orders|length > 0 %}
+            {% for task in orders %}
+                {{ display_task(task) }}
+            {% endfor %}
+        {% else %}
+            <p><i>You have no active orders.</i></p>
+        {% endif %}
+        {% if current_user.id == user.id %}
+            <hr>
+            <p><a href="{{ url_for('users.edit_user')}}"><button type="submit" class="btn btn-primary">Edit Profile</button></a></p>
+        {% endif %}
+    {% else %}
+        <div>
+            <p>
+                {% if has_requests and has_orders %}
+                    This user is already making requests and fulfilling orders on qqueue.
+                {% elif has_requests %}
+                    This user is already making requests on qqueue.
+                {% elif has_orders %}
+                    This user is already fulfilling orders on qqueue.
+                {% else %}
+                    This user is already registered for qqueue.
+                {% endif %}
+            </p>
+            <p><a href="{{ url_for('auth.login') }}">Login</a> or <a href="{{ url_for('auth.register') }}">register</a> to see their profile.</p>
+        </div>
+    {% endif %}
+{% endblock %}
