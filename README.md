@@ -1,0 +1,2 @@
+# q3 (qqueue v3)
+A rebuild of [qq2](https://github.com/whitgroves/qq2) and [qqueue](https://github.com/whitgroves/qqueue) to create a practical application in the form of a public work order management system.
