@@ -73,7 +73,10 @@ def get_task(task_id:int) -> Response:
     task = Task.query.filter(Task.id == task_id).first_or_404()
     if task.accepted_by and current_user.id not in [task.accepted_by, task.requested_by]: # pylint disable=line-too-long
         return redirect(url_for('tasks.index'))
-    return render_template('tasks/task.html', task=task, form=CommentForm())
+    return render_template('tasks/task.html',
+                           task=task,
+                           hide_requester=(current_user.id == task.requested_by),
+                           form=CommentForm())
 
 @blueprint.route('/<int:task_id>/edit', methods=('GET', 'POST'))
 @login_required
