@@ -8,6 +8,7 @@ __*__/
 # exceptions
 !.gitignore
 !.ebignore
+!.flaskenv
 
 # (everything below this line was automatically added)
 
