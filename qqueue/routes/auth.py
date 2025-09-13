@@ -12,7 +12,7 @@ from flask_login import login_user, login_required, current_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from qqueue.forms import RegisterForm, LoginForm, CredentialsForm
 from qqueue.models import User
-from qqueue.extensions import database, endpoint_exception, display_user
+from qqueue.extensions import database, w3, endpoint_exception, display_user
 
 blueprint = Blueprint('auth', __name__)
 
@@ -36,8 +36,8 @@ def register() -> Response:
             elif len(User.query.filter_by(email=email).all()) > 0:
                 flash('Email already registered.')
                 errors = True
-            elif not address.startswith('0x'):
-                flash('Address must be a valid blockchain address beginning with "0x".') # pylint disable=line-too-long
+            elif not w3.is_address(address):
+                flash('Address must be a valid blockchain address.')
                 errors = True
             if not errors and form.validate_on_submit():
                 password = generate_password_hash(password=password)
@@ -109,8 +109,8 @@ def edit() -> Response:
                     int(user.email == email): # change = false = 0 = no matches
                 flash('Email already registered to another user.')
                 errors = True
-            elif address and not address.startswith('0x'):
-                flash('Address must be a valid blockchain address beginning with "0x".') # pylint disable=line-too-long
+            elif address and not w3.is_address(address):
+                flash('Address must be a valid blockchain address.')
                 errors = True
             if not errors and form.validate_on_submit():
                 user.email = email

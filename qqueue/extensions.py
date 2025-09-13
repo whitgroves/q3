@@ -3,9 +3,13 @@
 from flask import current_app, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+import warnings
+warnings.simplefilter('ignore') # ignore DeprecationWarning in web3
+from web3 import Web3, EthereumTesterProvider
 
 database = SQLAlchemy()
 login = LoginManager()
+w3 = Web3(EthereumTesterProvider())
 
 def endpoint_exception() -> None:
     '''
