@@ -63,7 +63,7 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
     response = client.get(endpoint)
     assert response.status_code == 200
     for task in TASK_DATA:            
-        if 'completed_at' in task or ('accepted_at' in task and user_id not in [task['requested_by'], task['accepted_at']]):
+        if 'completed_at' in task or ('accepted_at' in task and user_id not in [task['requested_by'], task['accepted_by']]):
             assert task['summary'] not in response.text
             assert task['detail'] not in response.text
             assert str(task['reward_amount']) not in response.text

@@ -22,7 +22,7 @@ def test_register(client:FlaskClient) -> None:
     registration = {'email': 'auth@test.net',
                     'password': 'authtest',
                     'username': 'authtest',
-                    'address': f'0x{token_hex(40)}',
+                    'address': f'0x{token_hex(20)}',
                     'confirm_password': 'authtest'}
     response = client.post(endpoint, data=registration)
     assert response.status_code == 400
@@ -32,7 +32,7 @@ def test_register(client:FlaskClient) -> None:
     response = client.post(endpoint, data=with_token, follow_redirects=True)
     assert response.status_code == 200
     assert len(response.history) == 1
-    assert response.request.path == endpoint
+    assert response.request.path == '/auth/login'
 
     # Duplicate email is rejected, even with token
     response = client.post(endpoint, data=with_token)
@@ -193,16 +193,6 @@ def test_edit(client:FlaskClient) -> None:
     assert response.status_code == 200
     assert response.request.path == redirect
 
-    # Or just a password update
-    just_password = final_creds.copy()
-    del just_password['email']
-    del just_password['address']
-    response = client.post(endpoint,
-                           data={'csrf_token':g.csrf_token, **just_password},
-                           follow_redirects=True)
-    assert response.status_code == 200
-    assert response.request.path == redirect
-
     # Or just an address update
     just_address = final_creds.copy()
     del just_address['email']
@@ -214,8 +204,18 @@ def test_edit(client:FlaskClient) -> None:
     assert response.status_code == 200
     assert response.request.path == redirect
 
+    # Or just a password update
+    just_password = final_creds.copy()
+    del just_password['email']
+    del just_password['address']
+    response = client.post(endpoint,
+                           data={'csrf_token':g.csrf_token, **just_password},
+                           follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == redirect
+
     # If logged out, both GET and POST should redirect to login
-    client.get('/logout')
+    client.get('/auth/logout')
     assert_redirect(client.get(endpoint))
     assert_redirect(client.post(endpoint, data={'csrf_token':g.csrf_token,
                                                 **final_creds}))
