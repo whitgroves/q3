@@ -19,7 +19,7 @@ def create_app(config:BaseConfig=DevConfig) -> Flask:
     login.init_app(app=app)
 
     # internal imports to avoid circular references
-    from qqueue.models import User, Task                        # pylint: disable=import-outside-toplevel
+    from qqueue.models import Column, User, Task                # pylint: disable=import-outside-toplevel
     from qqueue.routes.main import blueprint as main_routes     # pylint: disable=import-outside-toplevel
     from qqueue.routes.auth import blueprint as auth_routes     # pylint: disable=import-outside-toplevel
     from qqueue.routes.users import blueprint as user_routes    # pylint: disable=import-outside-toplevel
@@ -33,7 +33,7 @@ def create_app(config:BaseConfig=DevConfig) -> Flask:
 
     # register routes
     app.register_blueprint(main_routes)
-    app.register_blueprint(auth_routes)
+    app.register_blueprint(auth_routes, url_prefix='/auth')
     app.register_blueprint(user_routes, url_prefix='/users')
     app.register_blueprint(task_routes, url_prefix='/tasks')
 

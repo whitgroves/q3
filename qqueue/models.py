@@ -12,6 +12,7 @@ class User(UserMixin, database.Model): # pylint: disable=too-few-public-methods
     email = Column(String(64), nullable=False, unique=True)
     username = Column(String(32), nullable=False, unique=True)
     password = Column(String(128), nullable=False)
+    address = Column(String(42), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now()) # pylint: disable=not-callable
     headline = Column(String(256))
     bio = Column(Text)

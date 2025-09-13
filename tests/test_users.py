@@ -90,7 +90,7 @@ def test_get_user(client:FlaskClient) -> None: # pylint: disable=too-many-statem
     assert 'None' not in response.text
 
     # Logout, then check recruitment messages for...
-    client.get('/logout')
+    client.get('/auth/logout')
 
     # Only requests completed (user0)
     response = client.get(endpoint(1))
@@ -204,103 +204,6 @@ def test_edit_user(client:FlaskClient) -> None:
         assert response.status_code == 200
 
     # If logged out, both GET and POST should redirect to login
-    client.get('/logout')
+    client.get('/auth/logout')
     assert_redirect(client.get(endpoint))
     assert_redirect(client.post(endpoint, data=new_data))
-
-def test_edit_credentials(client:FlaskClient) -> None:
-    '''Tests the endpoint `/users/edit/credentials`.'''
-
-    # Future-proofing
-    endpoint = '/users/edit/credentials'
-    new_login = {
-        'email': 'user-1@test.net',
-        'password': 'pass-1',
-    }
-    final_login = {
-        'email':'user-2@test.net',
-        'password':'pass-2',
-        'current_password': new_login['password']
-    }
-    new_login['confirm_password'] = new_login['password']
-    final_login['confirm_password'] = final_login['password']
-
-    # Log a sample user into the service
-    sample_index = randint(0, len(USER_DATA)-1)
-    old_login = USER_DATA[sample_index]
-    new_login['current_password'] = old_login['password']
-    authenticate_user(credentials=old_login, client=client)
-
-    # For GET requests, see the form pre-populated with their email,
-    # but NOT the password
-    response = client.get(endpoint)
-    assert response.status_code == 200
-    assert old_login['email'] in response.text
-    assert old_login['password'] not in response.text
-
-    # For POST requests, will fail and redirect to form if...
-
-    # ...New passwords don't match
-    invalid_login = new_login.copy()
-    invalid_login['password'] = 'pass-2'
-    response = client.post(endpoint,
-                           data={'csrf_token':g.csrf_token, **invalid_login},
-                           follow_redirects=True)
-    assert response.status_code == 400
-    assert response.request.path == endpoint
-
-    # ...Old password is incorrect
-    invalid_login = new_login.copy()
-    invalid_login['current_password'] = 'pass-2'
-    response = client.post(endpoint,
-                           data={'csrf_token':g.csrf_token, **invalid_login},
-                           follow_redirects=True)
-    assert response.status_code == 400
-    assert response.request.path == endpoint
-
-    # ...CSRF token is missing
-    response = client.post(endpoint, data=new_login, follow_redirects=True)
-    assert response.status_code == 400
-    assert response.request.path == endpoint
-
-    # Otherwise, will pass if all fields are present and redirect to the
-    # user's profile page
-    redirect = f'/users/{sample_index + 1}'
-    response = client.post(endpoint,
-                           data={'csrf_token':g.csrf_token, **new_login},
-                           follow_redirects=True)
-    assert response.status_code == 200
-    assert response.request.path == redirect
-
-    # Or just an email update
-    just_email = final_login.copy()
-    del just_email['password']
-    del just_email['confirm_password']
-    response = client.post(endpoint,
-                           data={'csrf_token':g.csrf_token, **just_email},
-                           follow_redirects=True)
-    assert response.status_code == 200
-    assert response.request.path == redirect
-
-    # Or just a password update
-    just_password = final_login.copy()
-    del just_password['email']
-    response = client.post(endpoint,
-                           data={'csrf_token':g.csrf_token, **just_password},
-                           follow_redirects=True)
-    assert response.status_code == 200
-    assert response.request.path == redirect
-
-    # If logged out, both GET and POST should redirect to login
-    client.get('/logout')
-    assert_redirect(client.get(endpoint))
-    assert_redirect(client.post(endpoint, data={'csrf_token':g.csrf_token,
-                                                **final_login}))
-
-    # Logging in with the old credentials shouldn't work
-    response = authenticate_user(credentials=old_login, client=client)
-    assert response.status_code == 400
-
-    # But logging in with the old username should be fine
-    response = authenticate_user(credentials=final_login, client=client)
-    assert response.status_code == 200

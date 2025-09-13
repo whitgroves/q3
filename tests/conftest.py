@@ -1,5 +1,6 @@
 '''Fixtures for automated testing of qqueue.'''
 
+from secrets import token_hex
 from datetime import date, timedelta
 from pytest import fixture
 from flask import Flask, Response, g
@@ -14,7 +15,8 @@ from qqueue.extensions import database
 # it's not "best practice" to do this, but it makes writing tests much easier.
 USER_DATA = [{'email':f'user{i}@test.net',
               'username':f'user{i}',
-              'password':f'pass{i}'} for i in range(4)]
+              'password':f'pass{i}',
+              'address':f'0x{token_hex(20)}'} for i in range(4)]
 
 # There are some specific scenarios being checked on user pages, so we make
 # a batch of similar tasks, then modify a couple of them for those tests
@@ -123,13 +125,13 @@ def authenticate_user(credentials:dict, client:FlaskClient) -> Response: # pylin
     For a detailed explaination, see:
         https://gist.github.com/singingwolfboy/2fca1de64950d5dfed72?permalink_comment_id=4556252#gistcomment-4556252
     '''
-    client.get('/login') # generates token
+    client.get('/auth/login') # generates token
     login_data = {'csrf_token': g.csrf_token,
                   'email_or_username': credentials['email'],
                   'password': credentials['password']}
-    return client.post('/login', data=login_data, follow_redirects=True)
+    return client.post('/auth/login', data=login_data, follow_redirects=True)
 
-def assert_redirect(response:Response, redirect='/login') -> None:
+def assert_redirect(response:Response, redirect='/auth/login') -> None:
     '''
     Asserts `response` was a redirect (302) to `redirect` (default `/login`).
 

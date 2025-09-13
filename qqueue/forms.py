@@ -18,6 +18,8 @@ class RegisterForm(FlaskForm):
     password = PasswordField('Password', validators=required_max_len(128))
     confirm_password = PasswordField('Confirm Password',
                                      validators=required_max_len(128))
+    address = StringField('Blockchain Address',
+                          validators=[DataRequired(),Length(min=42, max=42)])
 
 
 # login
@@ -42,6 +44,8 @@ class CredentialsForm(FlaskForm):
                                      validators=[Length(max=128)])
     current_password = PasswordField('Current Password',
                                      validators=required_max_len(128))
+    address = StringField('Blockchain Address',
+                          validators=[Length(max=42)])
 
 # task
 class TaskForm(FlaskForm):

@@ -8,6 +8,9 @@
 
         <h5>{{ form.email.label(class='form-label') }}</h5>
         <p>{{ form.email(class='form-control', size=64, value=user.email) }}</p>
+        
+        <h5>{{ form.address.label(class='form-label') }}</h5>
+        <p>{{ form.address(class='form-control', size=42, value=user.address) }}</p>
 
         <h5>{{ form.password.label(class='form-label') }}</h5>
         <p>{{ form.password(class='form-control', size=128) }}</p>

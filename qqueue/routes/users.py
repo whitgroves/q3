@@ -10,25 +10,16 @@ from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from qqueue.forms import UserForm, CredentialsForm
 from qqueue.models import User
-from qqueue.extensions import database, endpoint_exception
+from qqueue.extensions import database, endpoint_exception, display_user
 
 blueprint = Blueprint('users', __name__)
-
-def display_format(user:User) -> User:
-    '''
-    Helper that modifies `User` fields to display expected values, instead of
-    converting values like `None` to "None".
-    '''
-    user.headline = user.headline or ''
-    user.bio = user.bio or ''
-    return user
 
 @blueprint.route('/')
 def index() -> Response:
     data = dict()
     users = User.query.all()
     if current_user.is_authenticated:
-        data['users'] = [display_format(user) for user in users]
+        data['users'] = [display_user(user) for user in users]
     else:
         data['user_count'] = len(users)
     return render_template('users/index.html', **data)
@@ -38,7 +29,7 @@ def get_user(user_id:int) -> Response:
     data = dict()
     user = database.session.get(User, user_id)
     if current_user.is_authenticated:
-        data['user'] = display_format(user)
+        data['user'] = display_user(user)
         data['requests'] = [request for request in user.requests
                             if request.accepted_at == None]
         data['orders'] = [order for order in user.orders
@@ -60,11 +51,11 @@ def edit_user() -> Response:
     match request.method:
         case 'GET':
             return render_template('users/edit.html', 
-                                   user=display_format(user), 
+                                   user=display_user(user), 
                                    form=form)
         case 'POST':
-            username = (form.username.data or user.username).strip()
-            headline = (form.headline.data or user.headline).strip()
+            username = (form.username.data or user.username or '').strip()
+            headline = (form.headline.data or user.headline or '').strip()
             bio = (form.bio.data or user.bio).strip()
             errors = False
             if len(User.query.filter_by(username=username).all()) >\
@@ -94,13 +85,14 @@ def edit_credentials() -> Response:
     match request.method:
         case 'GET':
             return render_template('users/credentials.html',
-                                   user=display_format(user),
+                                   user=display_user(user),
                                    form=form)
         case 'POST':
-            email = (form.email.data or user.email).strip()
+            email = (form.email.data or user.email).strip().lower()
             password = (form.password.data or '').strip()
             confirm_password = (form.confirm_password.data or '').strip()
             current_password = form.current_password.data.strip() # never None
+            address = form.address.data.strip().lower()
             errors = False
             if not check_password_hash(user.password, current_password):
                 flash('Current password is incorrect.')
@@ -112,15 +104,19 @@ def edit_credentials() -> Response:
                     int(user.email == email): # change = false = 0 = no matches
                 flash('Email already registered to another user.')
                 errors = True
+            elif not address.startswith('0x'):
+                flash('Address must be a valid blockchain address beginning with "0x".') # pylint disable=line-too-long
+                errors = True
             if not errors and form.validate_on_submit():
                 user.email = email
                 if password: user.password = generate_password_hash(password)
+                if address: user.address = address
                 database.session.add(user)
                 database.session.commit()
                 flash(f'Credentials for {user.username} updated successfully.')
                 return redirect(url_for('users.get_user', user_id=user.id))
             return render_template('users/credentials.html',
-                                   user=display_format(user),
+                                   user=display_user(user),
                                    form=form), 400
         case _:
             endpoint_exception()

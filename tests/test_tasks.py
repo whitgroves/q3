@@ -62,15 +62,8 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
     authenticate_user(credentials=USER_DATA[user_id-1], client=client)
     response = client.get(endpoint)
     assert response.status_code == 200
-    for task in TASK_DATA:
-        if 'accepted_at' not in task or ('completed_at' not in task and user_id in [task['requested_by'], task['accepted_by']]): # pylint: disable=line-too-long
-            assert task['summary'] in response.text
-            assert task['detail'] in response.text
-            assert str(task['reward_amount']) in response.text
-            assert task['reward_currency'] in response.text
-            assert str(task['due_by']) in response.text
-            assert f'/users/{task["requested_by"]}' in response.text
-        else:
+    for task in TASK_DATA:            
+        if 'completed_at' in task or ('accepted_at' in task and user_id not in [task['requested_by'], task['accepted_at']]):
             assert task['summary'] not in response.text
             assert task['detail'] not in response.text
             assert str(task['reward_amount']) not in response.text
@@ -79,6 +72,13 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
             assert str(task['accepted_at']) not in response.text
             # cannot check for absence of user links since there are 2 of them
             # and either could have a value the other isn't supposed to
+        else:
+            assert task['summary'] in response.text
+            assert task['detail'] in response.text
+            assert str(task['reward_amount']) in response.text
+            assert task['reward_currency'] in response.text
+            assert str(task['due_by']) in response.text
+            assert f'/users/{task["requested_by"]}' in response.text
     assert all(text in response.text for text in logged_in_with_tasks_text)
     assert all(text not in response.text for text in logged_out_with_tasks_text)
     assert all(text not in response.text for text in logged_in_no_tasks_text)
@@ -105,7 +105,7 @@ def test_index(client:FlaskClient) -> None: # pylint: disable=too-many-statement
     assert all(text not in response.text for text in logged_out_no_tasks_text)
 
     # Then logout and repeat the check, but for a different message
-    client.get('/logout')
+    client.get('/auth/logout')
     response = client.get(endpoint)
     assert response.status_code == 200
     for task in TASK_DATA:
@@ -730,13 +730,13 @@ def test_add_comment(client:FlaskClient) -> None:
             assert response.status_code == 403
 
     # If logged out, no one may comment; any requests redirect to login
-    client.get('/logout')
+    client.get('/auth/logout')
     data = {'csrf_token': g.csrf_token,
             'created_by': randint(1, len(USER_DATA)),
             'text': f'Invalid comment.'}
     response = client.post(endpoint, data=data, follow_redirects=True)
     assert response.status_code == 200
-    assert response.request.path == '/login'
+    assert response.request.path == '/auth/login'
 
 def test_edit_comment(client:FlaskClient) -> None:
     '''Tests /tasks/comments/<comment_id>/edit'''
@@ -773,10 +773,10 @@ def test_edit_comment(client:FlaskClient) -> None:
 
     # And comments can never be edited while logged out; attempting to do so
     # redirects to login without updating the text
-    client.get('/logout')
+    client.get('/auth/logout')
     response = client.post(endpoint, data=data, follow_redirects=True)
     assert response.status_code == 200
-    assert response.request.path == '/login'
+    assert response.request.path == '/auth/login'
 
 def test_delete_comment(client:FlaskClient) -> None:
     '''Tests /tasks/comments/<comment_id>/delete'''
@@ -811,7 +811,7 @@ def test_delete_comment(client:FlaskClient) -> None:
     assert database.session.get(Comment, sample_comment_id) is not None
 
     # And comments can never be deleted while logged out
-    client.get('/logout')
+    client.get('/auth/logout')
     response = client.post(endpoint, follow_redirects=True)
     assert response.status_code == 200
-    assert response.request.path == '/login'
+    assert response.request.path == '/auth/login'

@@ -4,7 +4,6 @@ from flask import current_app, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 
-
 database = SQLAlchemy()
 login = LoginManager()
 
@@ -15,3 +14,14 @@ def endpoint_exception() -> None:
     '''
     current_app.logger.warning(f'405: {request.path} {request.method}: {request}') # pylint: disable=line-too-long
     abort(405)
+
+# No type hints as this would cause circular imports because of database
+# being imported into qqueue.models. TODO: fix this
+def display_user(user):
+    '''
+    Helper that modifies `User` fields to display expected values, instead of
+    converting values like `None` to "None".
+    '''
+    user.headline = user.headline or ''
+    user.bio = user.bio or ''
+    return user
