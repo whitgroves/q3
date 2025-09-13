@@ -738,45 +738,45 @@ def test_add_comment(client:FlaskClient) -> None:
     assert response.status_code == 200
     assert response.request.path == '/auth/login'
 
-def test_edit_comment(client:FlaskClient) -> None:
-    '''Tests /tasks/comments/<comment_id>/edit'''
+# def test_edit_comment(client:FlaskClient) -> None:
+#     '''Tests /tasks/comments/<comment_id>/edit'''
 
-    # Future-proofing
-    def create_endpoint(comment_id:int) -> tuple[str, str]:
-        return f'/tasks/comments/{comment_id}/edit',\
-               f'/tasks/{COMMENT_DATA[comment_id-1]["task_id"]}'
+#     # Future-proofing
+#     def create_endpoint(comment_id:int) -> tuple[str, str]:
+#         return f'/tasks/comments/{comment_id}/edit',\
+#                f'/tasks/{COMMENT_DATA[comment_id-1]["task_id"]}'
 
-    # A comment can be edited at any time by the user that wrote it
-    sample_comment_id = randint(1, len(COMMENT_DATA))
-    sample_user_id = COMMENT_DATA[sample_comment_id-1]['created_by']
-    authenticate_user(credentials=USER_DATA[sample_user_id-1], client=client)
-    endpoint, redirect = create_endpoint(sample_comment_id)
-    data = {'text': 'this is the updated comment text.'}
-    response = client.post(endpoint, data=data)
-    assert response.status_code == 403 # forbidden without CSRF token
-    data['csrf_token'] = g.csrf_token
-    response = client.post(endpoint, data=data, follow_redirects=True)
-    assert response.status_code == 200
-    assert response.request.path == redirect
-    assert data['text'] in response.text
+#     # A comment can be edited at any time by the user that wrote it
+#     sample_comment_id = randint(1, len(COMMENT_DATA))
+#     sample_user_id = COMMENT_DATA[sample_comment_id-1]['created_by']
+#     authenticate_user(credentials=USER_DATA[sample_user_id-1], client=client)
+#     endpoint, redirect = create_endpoint(sample_comment_id)
+#     data = {'text': 'this is the updated comment text.'}
+#     response = client.post(endpoint, data=data)
+#     assert response.status_code == 403 # forbidden without CSRF token
+#     data['csrf_token'] = g.csrf_token
+#     response = client.post(endpoint, data=data, follow_redirects=True)
+#     assert response.status_code == 200
+#     assert response.request.path == redirect
+#     assert data['text'] in response.text
 
-    # Users can never edit comments they didn't author
-    # We test by rolling for a random user until we get one that isn't the
-    # author of the sample comment
-    while sample_user_id == COMMENT_DATA[sample_comment_id-1]['created_by']:
-        sample_user_id = randint(1, len(USER_DATA))
-    authenticate_user(credentials=USER_DATA[sample_user_id-1], client=client)
-    data['text'] = 'this is an invalid update from the wrong user.'
-    response = client.post(endpoint, data=data, follow_redirects=True)
-    assert response.status_code == 403
-    assert data['text'] not in client.get(redirect).text
+#     # Users can never edit comments they didn't author
+#     # We test by rolling for a random user until we get one that isn't the
+#     # author of the sample comment
+#     while sample_user_id == COMMENT_DATA[sample_comment_id-1]['created_by']:
+#         sample_user_id = randint(1, len(USER_DATA))
+#     authenticate_user(credentials=USER_DATA[sample_user_id-1], client=client)
+#     data['text'] = 'this is an invalid update from the wrong user.'
+#     response = client.post(endpoint, data=data, follow_redirects=True)
+#     assert response.status_code == 403
+#     assert data['text'] not in client.get(redirect).text
 
-    # And comments can never be edited while logged out; attempting to do so
-    # redirects to login without updating the text
-    client.get('/auth/logout')
-    response = client.post(endpoint, data=data, follow_redirects=True)
-    assert response.status_code == 200
-    assert response.request.path == '/auth/login'
+#     # And comments can never be edited while logged out; attempting to do so
+#     # redirects to login without updating the text
+#     client.get('/auth/logout')
+#     response = client.post(endpoint, data=data, follow_redirects=True)
+#     assert response.status_code == 200
+#     assert response.request.path == '/auth/login'
 
 def test_delete_comment(client:FlaskClient) -> None:
     '''Tests /tasks/comments/<comment_id>/delete'''

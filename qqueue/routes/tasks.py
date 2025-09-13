@@ -213,23 +213,23 @@ def new_comment(task_id:int) -> Response:
         return redirect(url_for('tasks.get_task', task_id=task_id))
     abort(403)
 
-@blueprint.route('/comments/<int:comment_id>/edit', methods=('GET', 'POST'))
-@login_required
-def edit_comment(comment_id:int) -> Response:
-    '''Endpoint that handles task comment updates.'''
-    comment = database.session.get(Comment, comment_id)
-    if not comment or current_user.id != comment.created_by: abort(403)
-    form = CommentForm()
-    text = form.text.data
-    if form.validate_on_submit():
-        comment.text = text
-        database.session.add(comment)
-        database.session.commit()
-        message = f'Comment #{comment.id} updated successfully.'
-        current_app.logger.info(msg=message)
-        flash(message=message)
-        return redirect(url_for('tasks.get_task', task_id=comment.task_id))
-    abort(403)
+# @blueprint.route('/comments/<int:comment_id>/edit', methods=('GET', 'POST'))
+# @login_required
+# def edit_comment(comment_id:int) -> Response:
+#     '''Endpoint that handles task comment updates.'''
+#     comment = database.session.get(Comment, comment_id)
+#     if not comment or current_user.id != comment.created_by: abort(403)
+#     form = CommentForm()
+#     text = form.text.data
+#     if form.validate_on_submit():
+#         comment.text = text
+#         database.session.add(comment)
+#         database.session.commit()
+#         message = f'Comment #{comment.id} updated successfully.'
+#         current_app.logger.info(msg=message)
+#         flash(message=message)
+#         return redirect(url_for('tasks.get_task', task_id=comment.task_id))
+#     abort(403)
 
 @blueprint.post('/comments/<int:comment_id>/delete')
 @login_required
